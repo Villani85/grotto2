@@ -35,3 +35,4 @@ export function normalizeCourse(rawCourse: any): Course {
 
 
 
+

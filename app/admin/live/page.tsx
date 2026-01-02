@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
+import Link from "next/link"
 import { AdminRequired } from "@/components/AdminRequired"
 import { DemoModeBanner } from "@/components/DemoModeBanner"
 import { Button } from "@/components/ui/button"
@@ -27,6 +28,25 @@ export default function AdminLivePage() {
   const [s3VerifyResult, setS3VerifyResult] = useState<any>(null)
   const [sdkModule, setSdkModule] = useState<any>(null)
   const [isRequestingScreenShare, setIsRequestingScreenShare] = useState(false)
+  const [activeEvent, setActiveEvent] = useState<{ id: string; title: string; slug: string } | null>(null)
+  // Public active event state (for visibility check)
+  const [publicActiveEvent, setPublicActiveEvent] = useState<{
+    id: string
+    title: string
+    slug: string
+    status: string
+    playbackUrl?: string
+    chatEnabled?: boolean
+  } | null>(null)
+  const [isLoadingPublicEvent, setIsLoadingPublicEvent] = useState(false)
+  const [publicEventError, setPublicEventError] = useState<string | null>(null)
+  // Diagnostic state
+  const [manifestProbeStatus, setManifestProbeStatus] = useState<{
+    status: number | null
+    timestamp: string | null
+    error: string | null
+  } | null>(null)
+  const [isProbingManifest, setIsProbingManifest] = useState(false)
 
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const clientRef = useRef<any>(null)
@@ -53,6 +73,150 @@ export default function AdminLivePage() {
       }
     }
   }, [])
+
+  // Load active event (for metadata, with auth)
+  const loadActiveEvent = async () => {
+    try {
+      const token = await getFirebaseIdToken()
+      if (!token) return
+
+      const res = await fetch("/api/live-events/active", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+      const data = await res.json()
+      if (data.success && data.event) {
+        setActiveEvent({
+          id: data.event.id,
+          title: data.event.title,
+          slug: data.event.slug,
+        })
+      } else {
+        setActiveEvent(null)
+      }
+    } catch (err) {
+      console.warn("[IVS] Error loading active event:", err)
+      setActiveEvent(null)
+    }
+  }
+
+  // Load public active event (no auth required, for visibility check)
+  const loadPublicActiveEvent = async () => {
+    setIsLoadingPublicEvent(true)
+    setPublicEventError(null)
+
+    try {
+      const res = await fetch("/api/live-events/active", { cache: "no-store" })
+      const text = await res.text()
+      let data: any = null
+
+      if (text && text.trim() !== "") {
+        try {
+          data = JSON.parse(text)
+        } catch (parseError) {
+          console.error("[AdminLive] JSON parse error:", parseError)
+          setPublicEventError("Risposta non valida dal server")
+          setPublicActiveEvent(null)
+          return
+        }
+      } else {
+        setPublicActiveEvent(null)
+        return
+      }
+
+      if (!res.ok || !data?.success) {
+        setPublicEventError(data?.error || `Errore ${res.status}`)
+        setPublicActiveEvent(null)
+        return
+      }
+
+      if (data.event) {
+        setPublicActiveEvent({
+          id: data.event.id,
+          title: data.event.title,
+          slug: data.event.slug,
+          status: data.event.status || "live",
+          playbackUrl: data.event.playbackUrl,
+          chatEnabled: data.event.chatEnabled,
+        })
+      } else {
+        setPublicActiveEvent(null)
+      }
+    } catch (err: any) {
+      console.error("[AdminLive] Error loading public active event:", err)
+      setPublicEventError(err.message || "Errore di rete")
+      setPublicActiveEvent(null)
+    } finally {
+      setIsLoadingPublicEvent(false)
+    }
+  }
+
+  // Load public active event on mount
+  useEffect(() => {
+    loadPublicActiveEvent()
+  }, [])
+
+  // Probe manifest URL for diagnostics
+  const probeManifest = async (playbackUrl: string) => {
+    if (!playbackUrl) return
+
+    setIsProbingManifest(true)
+    setManifestProbeStatus(null)
+
+    try {
+      const res = await fetch(playbackUrl, {
+        method: "HEAD",
+        cache: "no-store",
+        signal: AbortSignal.timeout(5000), // 5s timeout
+      })
+
+      const status = res.status
+      setManifestProbeStatus({
+        status,
+        timestamp: new Date().toLocaleTimeString("it-IT"),
+        error: null,
+      })
+      
+      // If 404 and we're broadcasting, wait a bit and check again (ingest might be delayed)
+      if (status === 404 && isBroadcasting) {
+        setTimeout(async () => {
+          try {
+            const retryRes = await fetch(playbackUrl, {
+              method: "HEAD",
+              cache: "no-store",
+              signal: AbortSignal.timeout(5000),
+            })
+            if (retryRes.status !== 404) {
+              setManifestProbeStatus({
+                status: retryRes.status,
+                timestamp: new Date().toLocaleTimeString("it-IT"),
+                error: null,
+              })
+            } else {
+              // Still 404 after delay - likely ingest problem
+              setManifestProbeStatus({
+                status: 404,
+                timestamp: new Date().toLocaleTimeString("it-IT"),
+                error: "INGEST PROBLEM (stream non sta arrivando a IVS)",
+              })
+            }
+          } catch {
+            // Ignore retry errors
+          }
+        }, 10000) // 10s delay
+      }
+    } catch (err: any) {
+      // Network errors, CORS, timeouts
+      setManifestProbeStatus({
+        status: null,
+        timestamp: new Date().toLocaleTimeString("it-IT"),
+        error: err.name === "AbortError" ? "Timeout" : err.message || "Errore di rete",
+      })
+    } finally {
+      setIsProbingManifest(false)
+    }
+  }
 
   // Load IVS config (ingest endpoint + stream key)
   const loadConfig = async () => {
@@ -106,14 +270,25 @@ export default function AdminLivePage() {
     const loadSDK = async () => {
       try {
         setStatus("Config caricata. Carico SDK...")
+        if (process.env.NODE_ENV === "development") {
+          console.log("[IVS] Loading SDK...")
+        }
         const module = await loadBroadcastSdk()
+        if (process.env.NODE_ENV === "development") {
+          console.log("[IVS] SDK loaded")
+        }
         setSdkModule(module)
         setSdkReady(true)
         setStatus("SDK pronto. Inizializzazione...")
       } catch (err: any) {
         console.error("[IVS] Failed to load SDK:", err)
-        setError(`Errore nel caricamento SDK IVS: ${err.message || "Import fallito"}`)
+        const errorMsg = err.message || "Import fallito"
+        setError(`Errore nel caricamento SDK IVS: ${errorMsg}`)
         setStatus("Errore: SDK non disponibile")
+        // Show specific message for CSP/adblock
+        if (errorMsg.includes("CSP") || errorMsg.includes("adblock")) {
+          setError(`SDK bloccato: ${errorMsg}`)
+        }
       }
     }
 
@@ -160,10 +335,16 @@ export default function AdminLivePage() {
         client.attachPreview(canvasRef.current!)
 
         // Get camera + mic
+        if (process.env.NODE_ENV === "development") {
+          console.log("[IVS] Requesting camera/mic...")
+        }
         const cameraStream = await navigator.mediaDevices.getUserMedia({
           video: true,
           audio: true,
         })
+        if (process.env.NODE_ENV === "development") {
+          console.log("[IVS] Camera granted")
+        }
 
         cameraStreamRef.current = cameraStream
 
@@ -197,6 +378,9 @@ export default function AdminLivePage() {
         }
 
         clientRef.current = client
+        if (process.env.NODE_ENV === "development") {
+          console.log("[IVS] Client created")
+        }
         setStatus("Pronto (Camera attiva)")
       } catch (err: any) {
         console.error("Error initializing IVS client:", err)
@@ -259,6 +443,7 @@ export default function AdminLivePage() {
               streamKey: streamKeyRef.current,
               startedBy: user.uid,
               startedAt: new Date().toISOString(),
+              ...(activeEvent && { eventSlug: activeEvent.slug }),
             }),
           })
 
@@ -278,9 +463,13 @@ export default function AdminLivePage() {
         console.warn("[IVS] Failed to save stream metadata:", metadataError)
       }
     } catch (err: any) {
-      console.error("Error starting broadcast:", err)
-      setError(err.message || "Errore nell'avvio broadcast")
-      setStatus("Errore: " + (err.message || "Avvio fallito"))
+      console.error("[IVS] Error starting broadcast:", err)
+      const errorMsg = err.message || "Errore nell'avvio broadcast"
+      if (process.env.NODE_ENV === "development") {
+        console.error("[IVS] Broadcast failed:", errorMsg)
+      }
+      setError(errorMsg)
+      setStatus("Errore: " + errorMsg)
     }
   }
 
@@ -307,6 +496,7 @@ export default function AdminLivePage() {
               streamKey: streamKeyRef.current,
               stoppedBy: user.uid,
               stoppedAt: new Date().toISOString(),
+              ...(activeEvent && { eventSlug: activeEvent.slug }),
             }),
           })
 
@@ -656,18 +846,47 @@ export default function AdminLivePage() {
         }),
       })
 
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({ error: "Unknown error" }))
-        throw new Error(errorData.error || "Errore nell'importazione")
+      // Robust JSON parsing
+      const text = await res.text()
+      let data: any = null
+      if (text && text.trim() !== "") {
+        try {
+          data = JSON.parse(text)
+        } catch (parseError) {
+          console.error("[IVS] JSON parse error:", parseError)
+          alert("Errore: risposta non valida dal server")
+          return
+        }
       }
 
-      const data = await res.json()
-      alert(`Registrazione importata con successo! ID: ${data.id}`)
+      if (!res.ok) {
+        // Handle specific case: recording already imported (409)
+        if (res.status === 409 && data?.error === "Recording already imported") {
+          const existingId = data.id || "sconosciuto"
+          alert(`Questa registrazione è già stata importata.\nID: ${existingId}`)
+          // Reload recordings to refresh list
+          await loadRecordings()
+          return
+        }
+
+        // Other errors
+        const errorMessage = data?.error || `Errore ${res.status}`
+        alert(`Errore nell'importazione: ${errorMessage}`)
+        return
+      }
+
+      // Success
+      if (data?.id) {
+        alert(`Registrazione importata con successo! ID: ${data.id}`)
+      } else {
+        alert("Registrazione importata con successo!")
+      }
       // Reload recordings to show updated list
       await loadRecordings()
     } catch (err: any) {
+      // Network errors or other unexpected errors
       console.error("[IVS] Error importing recording:", err)
-      alert(`Errore nell'importazione: ${err.message}`)
+      alert(`Errore nell'importazione: ${err.message || "Errore di rete"}`)
     } finally {
       setImportingId(null)
     }
@@ -683,6 +902,205 @@ export default function AdminLivePage() {
             <CardTitle>Studio Diretta</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
+            {/* Public Active Event Status Box */}
+            <div className="rounded-md border p-4 space-y-3">
+              {isLoadingPublicEvent ? (
+                <div className="text-sm text-muted-foreground">Carico evento attivo...</div>
+              ) : publicEventError ? (
+                <div className="space-y-2">
+                  <p className="text-sm text-destructive">
+                    ⚠️ Impossibile verificare evento attivo: {publicEventError}
+                  </p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={loadPublicActiveEvent}
+                  >
+                    Riprova
+                  </Button>
+                </div>
+              ) : publicActiveEvent ? (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-semibold text-green-700 dark:text-green-400">
+                      ✅ Evento attivo pubblicato
+                    </h3>
+                    <span className="px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded text-xs font-medium">
+                      VISIBILE AGLI UTENTI ✅
+                    </span>
+                  </div>
+                  <div className="space-y-1 text-sm">
+                    <p>
+                      <strong>Titolo:</strong> {publicActiveEvent.title}
+                    </p>
+                    <p>
+                      <strong>Slug:</strong> {publicActiveEvent.slug}
+                    </p>
+                    <p>
+                      <strong>Status:</strong> {publicActiveEvent.status}
+                    </p>
+                  </div>
+
+                  {/* Diagnostic Section */}
+                  {publicActiveEvent.playbackUrl && (
+                    <div className="mt-4 p-3 bg-muted rounded-md border space-y-2">
+                      <div className="font-semibold text-xs mb-2">🔧 Diagnostica Playback</div>
+                      
+                      {/* Playback URLs Comparison */}
+                      <div className="space-y-1 text-xs">
+                        <div>
+                          <strong>Event Playback URL:</strong>
+                          <code className="block mt-1 p-1 bg-background rounded text-xs break-all">
+                            {publicActiveEvent.playbackUrl}
+                          </code>
+                        </div>
+                        {process.env.NEXT_PUBLIC_IVS_PLAYBACK_URL && (
+                          <>
+                            <div>
+                              <strong>Env Playback URL:</strong>
+                              <code className="block mt-1 p-1 bg-background rounded text-xs break-all">
+                                {process.env.NEXT_PUBLIC_IVS_PLAYBACK_URL}
+                              </code>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <strong>Match:</strong>
+                              {publicActiveEvent.playbackUrl === process.env.NEXT_PUBLIC_IVS_PLAYBACK_URL ? (
+                                <span className="px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded text-xs font-medium">
+                                  ✅ MATCH
+                                </span>
+                              ) : (
+                                <span className="px-2 py-1 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded text-xs font-medium">
+                                  ❌ MISMATCH
+                                </span>
+                              )}
+                            </div>
+                          </>
+                        )}
+                      </div>
+
+                      {/* Manifest Probe */}
+                      <div className="space-y-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => probeManifest(publicActiveEvent.playbackUrl!)}
+                          disabled={isProbingManifest}
+                          className="text-xs"
+                        >
+                          {isProbingManifest ? "Probing..." : "🔍 Probe Manifest"}
+                        </Button>
+
+                        {manifestProbeStatus && (
+                          <div className="space-y-1 text-xs">
+                            {manifestProbeStatus.status !== null ? (
+                              <>
+                                <div className="flex items-center gap-2">
+                                  <strong>Manifest Status:</strong>
+                                  <span
+                                    className={
+                                      manifestProbeStatus.status === 200
+                                        ? "text-green-600 font-semibold"
+                                        : manifestProbeStatus.status === 404
+                                        ? "text-muted-foreground font-semibold"
+                                        : "text-yellow-600 font-semibold"
+                                    }
+                                  >
+                                    {manifestProbeStatus.status}
+                                  </span>
+                                  <span className="text-muted-foreground">
+                                    ({manifestProbeStatus.timestamp})
+                                  </span>
+                                </div>
+                                {manifestProbeStatus.status === 404 && (
+                                  <div className={`p-2 border rounded text-xs ${
+                                    isBroadcasting
+                                      ? "bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800 text-yellow-800 dark:text-yellow-200"
+                                      : "bg-muted border-muted-foreground/20 text-muted-foreground"
+                                  }`}>
+                                    {isBroadcasting ? (
+                                      <>
+                                        ⚠️ <strong>INGEST PROBLEM</strong>: Stream non sta arrivando a IVS. Verifica endpoint/key o attendi 10-15s.
+                                      </>
+                                    ) : (
+                                      <>
+                                        ℹ️ <strong>OFFLINE</strong> (non in onda). Normale quando non stai trasmettendo.
+                                      </>
+                                    )}
+                                  </div>
+                                )}
+                                {manifestProbeStatus.error && manifestProbeStatus.error.includes("INGEST PROBLEM") && (
+                                  <div className="p-2 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded text-xs text-yellow-800 dark:text-yellow-200">
+                                    ⚠️ <strong>INGEST PROBLEM</strong>: Stream non sta arrivando a IVS dopo 10s. Verifica endpoint/key/config.
+                                  </div>
+                                )}
+                              </>
+                            ) : (
+                              <div className="text-red-600 text-xs">
+                                <strong>Errore:</strong> {manifestProbeStatus.error || "Errore sconosciuto"}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex gap-2 flex-wrap">
+                    <Link href={`/live/${publicActiveEvent.slug}`} target="_blank">
+                      <Button type="button" variant="outline" size="sm">
+                        Apri pagina pubblica
+                      </Button>
+                    </Link>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={loadPublicActiveEvent}
+                    >
+                      Aggiorna stato evento
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Gli utenti vedranno questo evento in /live
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-semibold text-yellow-700 dark:text-yellow-400">
+                      ⚠️ Nessun evento attivo pubblicato
+                    </h3>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    La diretta può essere attiva, ma gli utenti vedranno "Nessuna diretta" finché non
+                    pubblichi e attivi un evento.
+                  </p>
+                  <div className="flex gap-2 flex-wrap">
+                    <Link href="/admin/live-events">
+                      <Button type="button" variant="outline" size="sm">
+                        Gestisci eventi
+                      </Button>
+                    </Link>
+                    <Link href="/admin/live-events/new">
+                      <Button type="button" variant="outline" size="sm">
+                        Crea evento
+                      </Button>
+                    </Link>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={loadPublicActiveEvent}
+                    >
+                      Aggiorna stato evento
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+
             {/* Info: Recording */}
             <div className="rounded-md border border-blue-500/50 bg-blue-500/10 p-3 text-sm">
               <p className="font-semibold text-blue-700 dark:text-blue-400 mb-1">📹 Registrazione Diretta</p>

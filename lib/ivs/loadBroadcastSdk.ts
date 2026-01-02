@@ -40,6 +40,9 @@ export async function loadBroadcastSdk(): Promise<any> {
         
         // Check if already loaded
         if ((window as any).IVSBroadcastClient) {
+          if (process.env.NODE_ENV === "development") {
+            console.log("[IVS] SDK loaded from cache")
+          }
           resolve((window as any).IVSBroadcastClient)
           return
         }
@@ -48,9 +51,19 @@ export async function loadBroadcastSdk(): Promise<any> {
         script.src = "https://web-broadcast.live-video.net/1.31.1/amazon-ivs-web-broadcast.min.js"
         script.async = true
         
+        // Timeout for script loading (8s)
+        const timeout = setTimeout(() => {
+          script.remove()
+          reject(new Error("SDK bloccato (CSP/adblock). Consenti web-broadcast.live-video.net"))
+        }, 8000)
+        
         script.onload = () => {
+          clearTimeout(timeout)
           const client = (window as any).IVSBroadcastClient
           if (client && typeof client.create === "function") {
+            if (process.env.NODE_ENV === "development") {
+              console.log("[IVS] SDK loaded from CDN")
+            }
             resolve(client)
           } else {
             reject(new Error("CDN script loaded but IVSBroadcastClient not found"))
@@ -58,7 +71,8 @@ export async function loadBroadcastSdk(): Promise<any> {
         }
         
         script.onerror = () => {
-          reject(new Error("Failed to load SDK from CDN"))
+          clearTimeout(timeout)
+          reject(new Error("SDK bloccato (CSP/adblock). Consenti web-broadcast.live-video.net"))
         }
         
         document.head.appendChild(script)
@@ -116,4 +130,5 @@ export function createBroadcastClient(
   
   throw new Error("SDK module does not support client creation")
 }
+
 

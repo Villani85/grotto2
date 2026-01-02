@@ -293,3 +293,4 @@ Il sistema attuale supporta broadcast live tramite AWS IVS per admin (`/admin/li
 **Last Updated**: 2025-01-XX  
 **Author**: AI Code Assistant (Cursor)
 
+

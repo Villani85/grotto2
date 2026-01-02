@@ -6,7 +6,8 @@
     "build": "next build",
     "dev": "next dev",
     "start": "next start",
-    "firestore:deploy-indexes": "firebase deploy --only firestore:indexes"
+    "firestore:deploy-indexes": "firebase deploy --only firestore:indexes",
+    "selftest:live-events": "tsx scripts/selftest-live-events.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.958.0",
@@ -15,6 +16,7 @@
     "@radix-ui/react-dialog": "^1.1.15",
     "@radix-ui/react-label": "2.1.8",
     "@radix-ui/react-select": "2.2.6",
+    "@radix-ui/react-switch": "^1.2.6",
     "@radix-ui/react-tabs": "^1.1.13",
     "@types/bcryptjs": "^2.4.6",
     "amazon-ivs-web-broadcast": "^1.31.1",

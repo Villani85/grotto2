@@ -165,6 +165,33 @@ export async function POST(request: NextRequest) {
         updatedAt: FieldValue.serverTimestamp(),
       })
 
+      // Best-effort: Update live event status if eventId/eventSlug provided
+      if (body.eventId || body.eventSlug) {
+        try {
+          const { LiveEventsRepository } = await import("@/lib/repositories/live-events")
+          const eventId = body.eventId
+          const eventSlug = body.eventSlug
+
+          let event
+          if (eventId) {
+            event = await LiveEventsRepository.getById(eventId)
+          } else if (eventSlug) {
+            event = await LiveEventsRepository.getBySlug(eventSlug, false)
+          }
+
+          if (event) {
+            await LiveEventsRepository.update(event.id, {
+              status: "live",
+              startedAt: new Date(),
+            })
+            console.log("[IVS Recordings] Updated live event status to 'live':", event.id)
+          }
+        } catch (eventError) {
+          // Don't fail the recording save if event update fails
+          console.warn("[IVS Recordings] Could not update live event status:", eventError)
+        }
+      }
+
       return NextResponse.json({
         success: true,
         recordingId: recordingRef.id,
@@ -219,6 +246,70 @@ export async function POST(request: NextRequest) {
         status: "completed",
         updatedAt: FieldValue.serverTimestamp(),
       })
+
+      // Best-effort: Update live event status if eventId/eventSlug provided
+      if (body.eventId || body.eventSlug) {
+        try {
+          const { LiveEventsRepository } = await import("@/lib/repositories/live-events")
+          const eventId = body.eventId
+          const eventSlug = body.eventSlug
+
+          let event
+          if (eventId) {
+            event = await LiveEventsRepository.getById(eventId)
+          } else if (eventSlug) {
+            event = await LiveEventsRepository.getBySlug(eventSlug, false)
+          }
+
+          if (event) {
+            // Try to find the most recent recording for this event (by endedAt matching event end time)
+            let recordingId: string | null = null
+            let recordingUrl: string | null = null
+
+            try {
+              const recordingsSnapshot = await db
+                .collection("ivsRecordings")
+                .where("status", "==", "READY")
+                .orderBy("endedAt", "desc")
+                .limit(5)
+                .get()
+
+              // Find recording that ended around the same time as the event
+              const eventEndTime = new Date()
+              for (const recDoc of recordingsSnapshot.docs) {
+                const recData = recDoc.data()
+                const recEndTime = recData.endedAt?.toDate?.() || new Date(recData.endedAt)
+                const timeDiff = Math.abs(eventEndTime.getTime() - recEndTime.getTime())
+                // If recording ended within 5 minutes of event end, associate it
+                if (timeDiff < 5 * 60 * 1000) {
+                  recordingId = recDoc.id
+                  // Try to construct HLS URL from S3 prefix
+                  if (recData.s3Prefix) {
+                    const bucketName = process.env.AWS_S3_RECORDINGS_BUCKET || "v0-membership-recordings-tuonome2"
+                    const region = process.env.AWS_REGION || "eu-central-1"
+                    // Construct S3 URL (admin can update to CloudFront later)
+                    recordingUrl = `https://${bucketName}.s3.${region}.amazonaws.com/${recData.s3Prefix}/media/hls/master.m3u8`
+                  }
+                  break
+                }
+              }
+            } catch (recError) {
+              console.warn("[IVS Recordings] Could not auto-associate recording:", recError)
+            }
+
+            await LiveEventsRepository.update(event.id, {
+              status: "ended",
+              endedAt: new Date(),
+              ...(recordingId && { recordingId }),
+              ...(recordingUrl && { recordingUrl }),
+            })
+            console.log("[IVS Recordings] Updated live event status to 'ended':", event.id, { recordingId })
+          }
+        } catch (eventError) {
+          // Don't fail the recording save if event update fails
+          console.warn("[IVS Recordings] Could not update live event status:", eventError)
+        }
+      }
 
       return NextResponse.json({
         success: true,

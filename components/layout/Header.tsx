@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useAuth } from "@/context/AuthContext"
-import { FiMenu, FiX, FiLogOut, FiMessageSquare, FiUser, FiMessageCircle, FiSettings, FiBookOpen } from "react-icons/fi"
+import { FiMenu, FiX, FiLogOut, FiMessageSquare, FiUser, FiMessageCircle, FiSettings, FiBookOpen, FiPlay } from "react-icons/fi"
 import { FaTrophy } from "react-icons/fa"
 
 const Header = () => {
@@ -22,6 +22,7 @@ const Header = () => {
   const navLinks = [
     { href: "/bacheca", label: "Bacheca", icon: <FiMessageSquare /> },
     { href: "/academy", label: "Academy", icon: <FiBookOpen /> },
+    { href: "/area-riservata/live", label: "Eventi Live", icon: <FiPlay /> },
     { href: "/neurocredits", label: "NeuroCredits", icon: <FaTrophy /> },
     { href: "/area-riservata/profile", label: "Profilo", icon: <FiUser /> },
   ]

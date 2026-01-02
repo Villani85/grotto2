@@ -1,116 +1,68 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { FiPlay, FiCalendar, FiClock, FiUser, FiFilter, FiSearch } from "react-icons/fi"
+import { useAuth } from "@/context/AuthContext"
 
 interface LiveEvent {
   id: string
   title: string
-  description: string
-  date: string
-  time: string
-  duration: string
-  speaker: string
-  speakerTitle: string
-  status: "upcoming" | "live" | "recorded"
-  category: string
-  attendees: number
+  slug: string
+  description?: string
+  scheduledAt: string | null
+  startedAt: string | null
+  endedAt: string | null
+  status: "draft" | "scheduled" | "live" | "ended"
+  speaker?: string
+  speakerTitle?: string
+  category?: string
+  duration?: number
+  recordingId?: string
+  recordingUrl?: string
+  playbackUrl?: string
 }
 
 export default function LiveEventsPage() {
-  const [filter, setFilter] = useState<"all" | "upcoming" | "live" | "recorded">("all")
+  const { user } = useAuth()
+  const [filter, setFilter] = useState<"all" | "upcoming" | "live" | "ended">("all")
   const [search, setSearch] = useState("")
+  const [events, setEvents] = useState<LiveEvent[]>([])
+  const [isLoading, setIsLoading] = useState(true)
 
-  const events: LiveEvent[] = [
-    {
-      id: "1",
-      title: "Neuroplasticità: Riwire il Tuo Cervello",
-      description:
-        "Scopri come creare nuove connessioni neurali per apprendere più velocemente e migliorare le tue capacità cognitive.",
-      date: "2024-12-15",
-      time: "18:00",
-      duration: "90 min",
-      speaker: "Dr. Elena Rossi",
-      speakerTitle: "Neuroscienziata Cognitiva",
-      status: "upcoming",
-      category: "Neuroscienza",
-      attendees: 245,
-    },
-    {
-      id: "2",
-      title: "Gestione dello Stress con la Mindfulness",
-      description:
-        "Tecniche basate sulla neuroscienza per ridurre lo stress cronico e migliorare il benessere mentale.",
-      date: "2024-12-18",
-      time: "20:30",
-      duration: "75 min",
-      speaker: "Prof. Marco Bianchi",
-      speakerTitle: "Psicologo Clinico",
-      status: "upcoming",
-      category: "Mindfulness",
-      attendees: 189,
-    },
-    {
-      id: "3",
-      title: "Memoria Fotografica: Tecniche Avanzate",
-      description: "Metodi scientifici per sviluppare una memoria fotografica e ricordare informazioni complesse.",
-      date: "2024-12-10",
-      time: "17:00",
-      duration: "60 min",
-      speaker: "Dr. Sofia Conti",
-      speakerTitle: "Esperta in Mnemonica",
-      status: "recorded",
-      category: "Memoria",
-      attendees: 312,
-    },
-    {
-      id: "4",
-      title: "Biohacking del Sonno",
-      description: "Ottimizza il tuo sonno per massimizzare la rigenerazione cerebrale e le performance cognitive.",
-      date: "2024-12-20",
-      time: "19:00",
-      duration: "80 min",
-      speaker: "Ing. Luca Ferrari",
-      speakerTitle: "Biohacking Specialist",
-      status: "upcoming",
-      category: "Biohacking",
-      attendees: 156,
-    },
-    {
-      id: "5",
-      title: "Focus e Concentrazione Profonda",
-      description: "Strategie per entrare in stato di flow e mantenere la concentrazione per ore.",
-      date: "2024-12-05",
-      time: "16:30",
-      duration: "70 min",
-      speaker: "Dott.ssa Giulia Marini",
-      speakerTitle: "Psicologa del Lavoro",
-      status: "recorded",
-      category: "Produttività",
-      attendees: 278,
-    },
-    {
-      id: "6",
-      title: "Alimentazione per il Cervello",
-      description: "I nutrienti essenziali per ottimizzare le funzioni cognitive e prevenire il declino mentale.",
-      date: "2024-12-22",
-      time: "18:30",
-      duration: "85 min",
-      speaker: "Dr. Antonio Russo",
-      speakerTitle: "Nutrizionista Funzionale",
-      status: "upcoming",
-      category: "Nutrizione",
-      attendees: 201,
-    },
-  ]
+  useEffect(() => {
+    fetchEvents()
+  }, [filter])
+
+  const fetchEvents = async () => {
+    try {
+      setIsLoading(true)
+      const statusParam = filter !== "all" ? filter : null
+      const url = statusParam
+        ? `/api/live-events?status=${statusParam}`
+        : "/api/live-events"
+
+      const res = await fetch(url, { cache: "no-store" })
+      const data = await res.json()
+
+      if (data.success && Array.isArray(data.events)) {
+        setEvents(data.events)
+      } else {
+        setEvents([])
+      }
+    } catch (error) {
+      console.error("Error fetching events:", error)
+      setEvents([])
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   const filteredEvents = events.filter((event) => {
-    if (filter !== "all" && event.status !== filter) return false
     if (
       search &&
       !event.title.toLowerCase().includes(search.toLowerCase()) &&
-      !event.description.toLowerCase().includes(search.toLowerCase())
+      !event.description?.toLowerCase().includes(search.toLowerCase())
     )
       return false
     return true
@@ -120,9 +72,9 @@ export default function LiveEventsPage() {
     switch (status) {
       case "live":
         return "bg-red-500 text-white"
-      case "upcoming":
+      case "scheduled":
         return "bg-[#005FD7] text-white"
-      case "recorded":
+      case "ended":
         return "bg-blue-500 text-white"
       default:
         return "bg-gray-500 text-white"
@@ -133,24 +85,100 @@ export default function LiveEventsPage() {
     switch (status) {
       case "live":
         return "IN DIRETTA"
-      case "upcoming":
+      case "scheduled":
         return "PROSSIMAMENTE"
-      case "recorded":
+      case "ended":
         return "REGISTRATO"
       default:
         return ""
     }
   }
 
+  const formatDate = (dateString: string | null) => {
+    if (!dateString) return "—"
+    const date = new Date(dateString)
+    return date.toLocaleDateString("it-IT", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    })
+  }
+
+  const formatTime = (dateString: string | null) => {
+    if (!dateString) return "—"
+    const date = new Date(dateString)
+    return date.toLocaleTimeString("it-IT", {
+      hour: "2-digit",
+      minute: "2-digit",
+    })
+  }
+
+  const getEventUrl = (event: LiveEvent) => {
+    if (event.status === "live" || event.status === "scheduled") {
+      return `/live/${event.slug}`
+    }
+    if (event.status === "ended" && (event.recordingUrl || event.recordingId)) {
+      return `/area-riservata/live/${event.id}`
+    }
+    return null
+  }
+
+  // Trova la live attiva
+  const activeLiveEvent = events.find((event) => event.status === "live")
+
   return (
     <div className="space-y-8">
+      {/* Banner Live Attiva */}
+      {activeLiveEvent && (
+        <div className="bg-gradient-to-r from-red-900/50 to-red-800/50 rounded-2xl p-6 border-2 border-red-500 animate-pulse">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+            <div className="flex-1">
+              <div className="flex items-center gap-3 mb-2">
+                <span className="px-3 py-1 bg-red-500 text-white rounded-full text-sm font-bold animate-pulse">
+                  🔴 LIVE ORA
+                </span>
+                <h2 className="text-2xl font-bold text-white">{activeLiveEvent.title}</h2>
+              </div>
+              {activeLiveEvent.description && (
+                <p className="text-gray-200 mb-3">{activeLiveEvent.description}</p>
+              )}
+              {activeLiveEvent.speaker && (
+                <p className="text-sm text-gray-300">
+                  Con <span className="font-semibold">{activeLiveEvent.speaker}</span>
+                  {activeLiveEvent.speakerTitle && ` - ${activeLiveEvent.speakerTitle}`}
+                </p>
+              )}
+            </div>
+            <Link
+              href={`/live/${activeLiveEvent.slug}`}
+              className="px-8 py-4 bg-red-600 hover:bg-red-700 text-white rounded-lg text-lg font-bold transition-all transform hover:scale-105 shadow-lg flex items-center gap-2"
+            >
+              <FiPlay className="text-2xl" />
+              Partecipa Ora
+            </Link>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="bg-gradient-to-r from-gray-900 to-black rounded-2xl p-6 border border-gray-800">
-        <h1 className="text-3xl font-bold mb-2">Eventi Live</h1>
-        <p className="text-gray-400">
-          Partecipa a sessioni live con esperti di neuroscienza, psicologia e performance. Interagisci in tempo reale e
-          fai domande direttamente ai relatori.
-        </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold mb-2">Eventi Live</h1>
+            <p className="text-gray-400">
+              Partecipa a sessioni live con esperti di neuroscienza, psicologia e performance. Interagisci in tempo reale e
+              fai domande direttamente ai relatori.
+            </p>
+          </div>
+          {user?.isAdmin && (
+            <Link
+              href="/admin/live-events"
+              className="px-4 py-2 bg-[#005FD7] hover:bg-[#0051b8] rounded-lg text-sm font-medium transition-colors"
+            >
+              Gestisci Eventi
+            </Link>
+          )}
+        </div>
       </div>
 
       {/* Filters and Search */}
@@ -169,7 +197,7 @@ export default function LiveEventsPage() {
         </div>
 
         <div className="flex gap-2">
-          {(["all", "upcoming", "live", "recorded"] as const).map((status) => (
+          {(["all", "upcoming", "live", "ended"] as const).map((status) => (
             <button
               key={status}
               onClick={() => setFilter(status)}
@@ -192,69 +220,90 @@ export default function LiveEventsPage() {
       </div>
 
       {/* Events Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredEvents.map((event) => (
-          <div
-            key={event.id}
-            className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden hover:border-[#005FD7]/50 transition-all group"
-          >
-            {/* Event Header */}
-            <div className="p-6">
-              <div className="flex justify-between items-start mb-4">
-                <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(event.status)}`}>
-                  {getStatusText(event.status)}
-                </span>
-                <span className="text-sm text-gray-400">{event.category}</span>
-              </div>
-
-              <h3 className="text-xl font-semibold mb-3 group-hover:text-[#005FD7] transition-colors">{event.title}</h3>
-
-              <p className="text-gray-400 text-sm mb-4 line-clamp-2">{event.description}</p>
-
-              {/* Event Details */}
-              <div className="space-y-3">
-                <div className="flex items-center text-sm">
-                  <FiCalendar className="text-gray-500 mr-3" />
-                  <span className="text-gray-300">{event.date}</span>
-                  <span className="mx-2 text-gray-600">•</span>
-                  <FiClock className="text-gray-500 mr-3" />
-                  <span className="text-gray-300">
-                    {event.time} ({event.duration})
-                  </span>
-                </div>
-
-                <div className="flex items-center text-sm">
-                  <FiUser className="text-gray-500 mr-3" />
-                  <div>
-                    <div className="text-gray-300">{event.speaker}</div>
-                    <div className="text-gray-500 text-xs">{event.speakerTitle}</div>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between pt-4 border-t border-gray-800">
-                  <div className="text-sm text-gray-400">{event.attendees.toLocaleString("it-IT")} partecipanti</div>
-                  <Link
-                    href={`/area-riservata/live/${event.id}`}
-                    className="flex items-center px-4 py-2 bg-[#005FD7] hover:bg-[#0051b8] rounded-lg text-sm font-medium transition-colors"
-                  >
-                    <FiPlay className="mr-2" />
-                    {event.status === "recorded" ? "Guarda Ora" : "Partecipa"}
-                  </Link>
-                </div>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Empty State */}
-      {filteredEvents.length === 0 && (
+      {isLoading ? (
+        <div className="text-center py-12">
+          <p className="text-gray-400">Caricamento eventi...</p>
+        </div>
+      ) : filteredEvents.length === 0 ? (
         <div className="text-center py-12">
           <div className="w-20 h-20 bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
             <FiFilter className="text-gray-500 text-2xl" />
           </div>
           <h3 className="text-xl font-semibold mb-2">Nessun evento trovato</h3>
           <p className="text-gray-400">Prova a modificare i filtri o la ricerca per trovare eventi.</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredEvents.map((event) => {
+            const eventUrl = getEventUrl(event)
+            return (
+              <div
+                key={event.id}
+                className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden hover:border-[#005FD7]/50 transition-all group"
+              >
+                {/* Event Header */}
+                <div className="p-6">
+                  <div className="flex justify-between items-start mb-4">
+                    <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(event.status)}`}>
+                      {getStatusText(event.status)}
+                    </span>
+                    {event.category && <span className="text-sm text-gray-400">{event.category}</span>}
+                  </div>
+
+                  <h3 className="text-xl font-semibold mb-3 group-hover:text-[#005FD7] transition-colors">{event.title}</h3>
+
+                  <p className="text-gray-400 text-sm mb-4 line-clamp-2">{event.description || "Nessuna descrizione"}</p>
+
+                  {/* Event Details */}
+                  <div className="space-y-3">
+                    <div className="flex items-center text-sm">
+                      <FiCalendar className="text-gray-500 mr-3" />
+                      <span className="text-gray-300">{formatDate(event.scheduledAt)}</span>
+                      {event.scheduledAt && (
+                        <>
+                          <span className="mx-2 text-gray-600">•</span>
+                          <FiClock className="text-gray-500 mr-3" />
+                          <span className="text-gray-300">{formatTime(event.scheduledAt)}</span>
+                        </>
+                      )}
+                      {event.duration && (
+                        <>
+                          <span className="mx-2 text-gray-600">•</span>
+                          <span className="text-gray-300">({event.duration} min)</span>
+                        </>
+                      )}
+                    </div>
+
+                    {event.speaker && (
+                      <div className="flex items-center text-sm">
+                        <FiUser className="text-gray-500 mr-3" />
+                        <div>
+                          <div className="text-gray-300">{event.speaker}</div>
+                          {event.speakerTitle && (
+                            <div className="text-gray-500 text-xs">{event.speakerTitle}</div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="flex items-center justify-between pt-4 border-t border-gray-800">
+                      {eventUrl ? (
+                        <Link
+                          href={eventUrl}
+                          className="flex items-center px-4 py-2 bg-[#005FD7] hover:bg-[#0051b8] rounded-lg text-sm font-medium transition-colors"
+                        >
+                          <FiPlay className="mr-2" />
+                          {event.status === "ended" ? "Guarda Replay" : event.status === "live" ? "Guarda Live" : "Partecipa"}
+                        </Link>
+                      ) : (
+                        <span className="text-sm text-gray-500">Replay non disponibile</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )
+          })}
         </div>
       )}
 
@@ -277,7 +326,7 @@ export default function LiveEventsPage() {
           <div className="space-y-2">
             <div className="text-[#005FD7] font-semibold">3. Replay</div>
             <p className="text-gray-400 text-sm">
-              Tutti gli eventi vengono registrati e sono disponibili nella sezione "Registrati" dopo 24 ore.
+              Tutti gli eventi vengono registrati e sono disponibili nella sezione "Registrati" dopo la diretta.
             </p>
           </div>
         </div>

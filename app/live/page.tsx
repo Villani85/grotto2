@@ -1,76 +1,50 @@
 "use client"
 
-import { useEffect, useRef } from "react"
-import Script from "next/script"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
+import { Card, CardContent } from "@/components/ui/card"
 
-// Declare IVS Player types (SDK will be loaded dynamically)
-declare global {
-  interface Window {
-    IVSPlayer: any
-  }
+interface ActiveEvent {
+  slug: string
+  title: string
 }
 
 export default function LivePage() {
-  const videoRef = useRef<HTMLVideoElement>(null)
-  const playerRef = useRef<any>(null)
-
-  const playbackUrl = process.env.NEXT_PUBLIC_IVS_PLAYBACK_URL
+  const router = useRouter()
+  const [isLoading, setIsLoading] = useState(true)
+  const [activeEvent, setActiveEvent] = useState<ActiveEvent | null>(null)
 
   useEffect(() => {
-    if (!playbackUrl) {
-      console.error("NEXT_PUBLIC_IVS_PLAYBACK_URL not set")
-      return
-    }
+    fetchActiveEvent()
+  }, [])
 
-    // Initialize player when SDK is ready
-    const initPlayer = () => {
-      if (!window.IVSPlayer || !videoRef.current) return
+  const fetchActiveEvent = async () => {
+    try {
+      const res = await fetch("/api/live-events/active", { cache: "no-store" })
+      const data = await res.json()
 
-      try {
-        const player = window.IVSPlayer.create()
-        player.attachHTMLVideoElement(videoRef.current)
-        player.load(playbackUrl)
-        playerRef.current = player
-      } catch (err) {
-        console.error("Error initializing IVS player:", err)
+      if (data.success && data.event) {
+        setActiveEvent({
+          slug: data.event.slug,
+          title: data.event.title,
+        })
+        // Redirect to event page
+        router.push(`/live/${data.event.slug}`)
+      } else {
+        setIsLoading(false)
       }
+    } catch (error) {
+      console.error("Error fetching active event:", error)
+      setIsLoading(false)
     }
+  }
 
-    // Check if SDK is already loaded
-    if (window.IVSPlayer) {
-      initPlayer()
-    } else {
-      // Wait for SDK to load
-      const checkInterval = setInterval(() => {
-        if (window.IVSPlayer) {
-          clearInterval(checkInterval)
-          initPlayer()
-        }
-      }, 100)
-
-      // Cleanup
-      return () => {
-        clearInterval(checkInterval)
-        if (playerRef.current) {
-          try {
-            playerRef.current.delete()
-          } catch (e) {
-            // Ignore cleanup errors
-          }
-        }
-      }
-    }
-  }, [playbackUrl])
-
-  if (!playbackUrl) {
+  if (isLoading) {
     return (
       <div className="py-8">
         <Card>
           <CardContent className="py-8">
-            <p className="text-center text-muted-foreground">
-              Stream non disponibile. Configura NEXT_PUBLIC_IVS_PLAYBACK_URL.
-            </p>
+            <p className="text-center text-muted-foreground">Caricamento...</p>
           </CardContent>
         </Card>
       </div>
@@ -79,23 +53,13 @@ export default function LivePage() {
 
   return (
     <div className="py-8">
-      <Script
-        src="https://player.live-video.net/1.4.1/amazon-ivs-player.min.js"
-        strategy="afterInteractive"
-      />
-
       <Card>
-        <CardHeader>
-          <CardTitle>Diretta Live</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="relative w-full" style={{ aspectRatio: "16/9" }}>
-            <video
-              ref={videoRef}
-              className="w-full h-full bg-black rounded-lg"
-              playsInline
-              controls
-            />
+        <CardContent className="py-8">
+          <div className="text-center space-y-4">
+            <h1 className="text-2xl font-bold">Nessuna diretta in corso</h1>
+            <p className="text-muted-foreground">
+              Non ci sono eventi live attivi al momento. Torna più tardi per vedere le prossime dirette.
+            </p>
           </div>
         </CardContent>
       </Card>

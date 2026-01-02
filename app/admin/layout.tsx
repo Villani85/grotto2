@@ -1,6 +1,6 @@
 import type React from "react"
 import Link from "next/link"
-import { Users, BookOpen, Settings, Mail, Shield, Radio } from "lucide-react"
+import { Users, BookOpen, Settings, Mail, Shield, Radio, Calendar } from "lucide-react"
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -36,6 +36,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             >
               <Radio className="h-4 w-4" />
               Diretta
+            </Link>
+            <Link
+              href="/admin/live-events"
+              className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-accent hover:text-accent-foreground transition-colors"
+            >
+              <Calendar className="h-4 w-4" />
+              Eventi Live
             </Link>
             <Link
               href="/admin/settings"

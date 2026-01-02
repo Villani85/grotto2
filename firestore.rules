@@ -157,6 +157,35 @@ service cloud.firestore {
       allow create: if isAdmin();
     }
     
+    // Live events collection
+    match /live_events/{eventId} {
+      // Anyone can read published events (for public watch page)
+      allow read: if resource.data.published == true;
+      
+      // Only admins can write
+      allow write: if isAdmin();
+      
+      // Chat subcollection
+      match /chat/{messageId} {
+        // Anyone authenticated can read messages if event is published
+        allow read: if isAuthenticated() && 
+                     get(/databases/$(database)/documents/live_events/$(eventId)).data.published == true;
+        
+        // Users can create messages if event is published and chat is enabled
+        allow create: if isAuthenticated() && 
+                       get(/databases/$(database)/documents/live_events/$(eventId)).data.published == true &&
+                       get(/databases/$(database)/documents/live_events/$(eventId)).data.chatEnabled == true &&
+                       request.resource.data.authorId == request.auth.uid &&
+                       request.resource.data.text.size() <= 280;
+        
+        // Only admins can delete messages (moderation)
+        allow delete: if isAdmin();
+        
+        // No updates allowed (messages are immutable)
+        allow update: if false;
+      }
+    }
+    
     // Courses collection
     match /courses/{courseId} {
       // Anyone authenticated can read courses
