@@ -31,6 +31,17 @@ export function CommentsList({ postId, onCommentDeleted }: CommentsListProps) {
   const { user } = useAuth()
   const { toast } = useToast()
 
+  // Debug: log user admin status
+  useEffect(() => {
+    if (user) {
+      console.log("[CommentsList] User info:", {
+        uid: user.uid,
+        isAdmin: user.isAdmin,
+        nickname: user.nickname,
+      })
+    }
+  }, [user])
+
   const fetchComments = async () => {
     try {
       setIsLoading(true)
@@ -51,11 +62,21 @@ export function CommentsList({ postId, onCommentDeleted }: CommentsListProps) {
   }, [postId])
 
   const handleDelete = async (commentId: string, authorId: string) => {
-    if (!user || user.uid !== authorId) {
+    if (!user) {
       return
     }
 
-    if (!confirm("Sei sicuro di voler eliminare questo commento?")) {
+    // Only author or admin can delete
+    const canDelete = user.uid === authorId || user.isAdmin
+    if (!canDelete) {
+      return
+    }
+
+    const confirmMessage = user.isAdmin && user.uid !== authorId
+      ? "Sei sicuro di voler eliminare questo commento come amministratore?"
+      : "Sei sicuro di voler eliminare questo commento?"
+
+    if (!confirm(confirmMessage)) {
       return
     }
 
@@ -155,12 +176,13 @@ export function CommentsList({ postId, onCommentDeleted }: CommentsListProps) {
                 </div>
                 <p className="text-sm whitespace-pre-wrap break-words">{comment.text}</p>
               </div>
-              {user && user.uid === comment.authorId && (
+              {user && (user.uid === comment.authorId || user.isAdmin) && (
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => handleDelete(comment.id, comment.authorId)}
                   className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                  title={user.isAdmin && user.uid !== comment.authorId ? "Elimina come amministratore" : "Elimina commento"}
                 >
                   <FiTrash2 className="h-4 w-4" />
                 </Button>

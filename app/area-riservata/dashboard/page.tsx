@@ -5,6 +5,7 @@ import { useAuth } from "@/context/AuthContext"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { FiTrendingUp, FiTarget, FiAward, FiCalendar, FiMessageSquare, FiMessageCircle, FiPlay, FiClock, FiBookOpen } from "react-icons/fi"
+import { DashboardSkeleton } from "@/components/ui/skeleton"
 
 // Helper function to format numbers consistently (avoid hydration mismatch)
 const formatNumber = (num: number): string => {
@@ -93,14 +94,7 @@ export default function DashboardPage() {
   }, [user, isLoading, router])
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-[#005FD7] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-400">Caricamento dashboard...</p>
-        </div>
-      </div>
-    )
+    return <DashboardSkeleton />
   }
 
   if (!user) {
@@ -146,18 +140,20 @@ export default function DashboardPage() {
 
       {/* Quick Actions */}
       <div>
-        <h2 className="text-2xl font-bold mb-4">Azioni Rapide</h2>
+        <h2 className="text-2xl font-bold mb-6">Azioni Rapide</h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {quickActions.map((action, index) => (
             <Link
               key={index}
               href={action.href}
-              className="bg-gray-900 rounded-xl p-6 border border-gray-800 hover:border-[#005FD7] transition-all hover:scale-[1.02] group"
+              className="bg-gray-900 rounded-xl p-6 border-2 border-gray-800 hover:border-[#005FD7] transition-all duration-200 hover:scale-105 hover:shadow-xl group relative overflow-hidden"
+              style={{ animationDelay: `${index * 50}ms` }}
             >
-              <div className={`w-12 h-12 ${action.color} rounded-lg flex items-center justify-center mb-4`}>
-                <div className="text-white text-xl">{action.icon}</div>
+              <div className="absolute inset-0 bg-gradient-to-br from-[#005FD7]/0 to-[#005FD7]/0 group-hover:from-[#005FD7]/5 group-hover:to-[#005FD7]/10 transition-all duration-200" />
+              <div className={`w-14 h-14 ${action.color} rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-200 shadow-lg`}>
+                <div className="text-white text-2xl">{action.icon}</div>
               </div>
-              <h3 className="font-semibold group-hover:text-[#005FD7] transition-colors">{action.label}</h3>
+              <h3 className="font-semibold group-hover:text-[#005FD7] transition-colors relative z-10">{action.label}</h3>
             </Link>
           ))}
         </div>
@@ -177,8 +173,11 @@ export default function DashboardPage() {
                 <span className="text-gray-400">Punti totali</span>
                 <span className="font-semibold">{formatNumber(stats.totalPoints)}</span>
               </div>
-              <div className="h-2 bg-gray-800 rounded-full overflow-hidden">
-                <div className="h-full bg-[#005FD7] rounded-full" style={{ width: `${progressPercentage}%` }} />
+              <div className="h-2 bg-gray-800 rounded-full overflow-hidden relative">
+                <div
+                  className="h-full bg-gradient-to-r from-[#005FD7] to-[#0066ff] rounded-full transition-all duration-1000 ease-out animate-progress-fill"
+                  style={{ width: `${progressPercentage}%` }}
+                />
               </div>
               <div className="text-xs text-gray-500 mt-1">
                 {1000 - (stats.totalPoints % 1000)} punti per il livello {stats.currentLevel + 1}
@@ -227,7 +226,13 @@ export default function DashboardPage() {
                       <span className="text-[#005FD7]">{event.speaker}</span>
                     </div>
                   </div>
-                  <span className="px-3 py-1 bg-[#005FD7]/20 text-[#005FD7] rounded-full text-sm">
+                  <span
+                    className={`px-3 py-1 rounded-full text-sm font-semibold ${
+                      event.status === "live"
+                        ? "bg-red-500/20 text-red-400 animate-pulse"
+                        : "bg-[#005FD7]/20 text-[#005FD7]"
+                    }`}
+                  >
                     {event.status === "upcoming" ? "Prossimamente" : "In diretta"}
                   </span>
                 </div>
@@ -267,9 +272,13 @@ export default function DashboardPage() {
               icon: <FiTrendingUp />,
             },
           ].map((activity, index) => (
-            <div key={index} className="flex items-center p-4 bg-gray-800/30 rounded-lg">
-              <div className="w-10 h-10 bg-[#005FD7]/20 rounded-lg flex items-center justify-center mr-4">
-                <div className="text-[#005FD7]">{activity.icon}</div>
+            <div
+              key={index}
+              className="flex items-center p-4 bg-gray-800/30 rounded-lg hover:bg-gray-800/50 transition-all duration-200 hover:scale-[1.01] animate-fade-in-up"
+              style={{ animationDelay: `${index * 100}ms` }}
+            >
+              <div className="w-12 h-12 bg-[#005FD7]/20 rounded-lg flex items-center justify-center mr-4 group-hover:bg-[#005FD7]/30 transition-colors">
+                <div className="text-[#005FD7] text-lg">{activity.icon}</div>
               </div>
               <div className="flex-grow">
                 <div className="font-medium">{activity.action}</div>

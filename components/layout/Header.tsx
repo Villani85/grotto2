@@ -2,12 +2,14 @@
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
+import { usePathname } from "next/navigation"
 import { useAuth } from "@/context/AuthContext"
 import { FiMenu, FiX, FiLogOut, FiMessageSquare, FiUser, FiMessageCircle, FiSettings, FiBookOpen, FiPlay } from "react-icons/fi"
 import { FaTrophy } from "react-icons/fa"
 
 const Header = () => {
   const { user, logout } = useAuth()
+  const pathname = usePathname()
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [isScrolled, setIsScrolled] = useState(false)
 
@@ -20,12 +22,16 @@ const Header = () => {
   }, [])
 
   const navLinks = [
-    { href: "/bacheca", label: "Bacheca", icon: <FiMessageSquare /> },
-    { href: "/academy", label: "Academy", icon: <FiBookOpen /> },
-    { href: "/area-riservata/live", label: "Eventi Live", icon: <FiPlay /> },
-    { href: "/neurocredits", label: "NeuroCredits", icon: <FaTrophy /> },
+    { href: "/area-riservata/dashboard", label: "Dashboard", icon: <FiSettings /> },
     { href: "/area-riservata/profile", label: "Profilo", icon: <FiUser /> },
   ]
+
+  const isActiveLink = (href: string) => {
+    if (href === "/") {
+      return pathname === "/"
+    }
+    return pathname?.startsWith(href)
+  }
 
   const getUserInitial = () => {
     if (!user?.nickname && !user?.email) return "U"
@@ -51,22 +57,32 @@ const Header = () => {
               <span className="text-white font-bold text-xl">BHA</span>
             </div>
             <div>
-              <h1 className="text-xl font-bold text-[#005FD7]">NeuroAgorà</h1>
+              <h1 className="text-xl font-bold text-[#005FD7]">BRAIN HACKING</h1>
             </div>
           </Link>
 
           {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center space-x-6">
-            {navLinks.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className="flex items-center space-x-2 text-gray-300 hover:text-[#005FD7] transition-colors"
-              >
-                {link.icon}
-                <span>{link.label}</span>
-              </Link>
-            ))}
+            {navLinks.map((link) => {
+              const isActive = isActiveLink(link.href)
+              return (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className={`flex items-center space-x-2 transition-all duration-200 relative ${
+                    isActive
+                      ? "text-[#005FD7] font-semibold"
+                      : "text-gray-300 hover:text-[#005FD7]"
+                  }`}
+                >
+                  {link.icon}
+                  <span>{link.label}</span>
+                  {isActive && (
+                    <span className="absolute -bottom-1 left-0 right-0 h-0.5 bg-[#005FD7] rounded-full" />
+                  )}
+                </Link>
+              )
+            })}
           </nav>
 
           {/* User Actions */}
@@ -83,8 +99,10 @@ const Header = () => {
                   </Link>
                 )}
                 <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-[#005FD7] rounded-full flex items-center justify-center">
-                    <span className="font-bold">{getUserInitial()}</span>
+                  <div className="relative">
+                    <div className="w-12 h-12 bg-gradient-to-br from-[#005FD7] to-[#0051b8] rounded-full flex items-center justify-center shadow-lg hover:shadow-xl transition-shadow">
+                      <span className="font-bold text-white">{getUserInitial()}</span>
+                    </div>
                   </div>
                   <div>
                     <p className="font-medium">{user.nickname || user.email || "Utente"}</p>
@@ -122,19 +140,26 @@ const Header = () => {
 
         {/* Mobile Menu */}
         {isMenuOpen && (
-          <div className="md:hidden mt-4 pb-4 border-t border-gray-800 pt-4">
+          <div className="md:hidden mt-4 pb-4 border-t border-gray-800 pt-4 animate-fade-in-up">
             <div className="flex flex-col space-y-4">
-              {navLinks.map((link) => (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  className="flex items-center space-x-3 text-gray-300 hover:text-[#005FD7] py-2"
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  {link.icon}
-                  <span>{link.label}</span>
-                </Link>
-              ))}
+              {navLinks.map((link) => {
+                const isActive = isActiveLink(link.href)
+                return (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    className={`flex items-center space-x-3 py-2 transition-all ${
+                      isActive
+                        ? "text-[#005FD7] font-semibold bg-[#005FD7]/10 rounded-lg px-3"
+                        : "text-gray-300 hover:text-[#005FD7]"
+                    }`}
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    {link.icon}
+                    <span>{link.label}</span>
+                  </Link>
+                )
+              })}
 
               <div className="pt-4 border-t border-gray-800">
                 {user ? (
@@ -150,8 +175,8 @@ const Header = () => {
                       </Link>
                     )}
                     <div className="flex items-center space-x-3 mb-4">
-                      <div className="w-10 h-10 bg-[#005FD7] rounded-full flex items-center justify-center shadow-lg">
-                        <span className="font-bold">{getUserInitial()}</span>
+                      <div className="w-12 h-12 bg-gradient-to-br from-[#005FD7] to-[#0051b8] rounded-full flex items-center justify-center shadow-lg">
+                        <span className="font-bold text-white">{getUserInitial()}</span>
                       </div>
                       <div>
                         <p className="font-medium">{user.nickname || user.email || "Utente"}</p>

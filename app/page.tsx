@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef } from "react"
 import Link from "next/link"
 import { useAuth } from "@/context/AuthContext"
 import {
@@ -22,6 +22,70 @@ import { GiBrain } from "react-icons/gi"
 // Helper function to format numbers consistently (avoid hydration mismatch)
 const formatNumber = (num: number): string => {
   return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".")
+}
+
+// Statistic Card Component with Counter Animation
+function StatCard({
+  label,
+  value,
+  icon,
+  suffix,
+  index,
+}: {
+  label: string
+  value: number
+  icon: React.ReactNode
+  suffix: string
+  index: number
+}) {
+  const [displayValue, setDisplayValue] = useState(0)
+  const [isVisible, setIsVisible] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting && !isVisible) {
+          setIsVisible(true)
+          // Animate counter
+          const duration = 2000
+          const steps = 60
+          const increment = value / steps
+          let current = 0
+          const timer = setInterval(() => {
+            current += increment
+            if (current >= value) {
+              setDisplayValue(value)
+              clearInterval(timer)
+            } else {
+              setDisplayValue(Math.floor(current))
+            }
+          }, duration / steps)
+          return () => clearInterval(timer)
+        }
+      },
+      { threshold: 0.5 }
+    )
+    if (ref.current) observer.observe(ref.current)
+    return () => observer.disconnect()
+  }, [value, isVisible])
+
+  return (
+    <div
+      ref={ref}
+      className="glass-effect rounded-3xl p-8 hover:scale-110 hover:shadow-2xl transition-all duration-300 group animate-scale-in"
+      style={{ animationDelay: `${index * 150}ms` }}
+    >
+      <div className="w-16 h-16 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-[#005FD7] to-[#0066ff] flex items-center justify-center text-3xl group-hover:rotate-12 transition-transform animate-electric-pulse shadow-lg">
+        {icon}
+      </div>
+      <div className="text-5xl md:text-6xl font-black mb-2 text-gradient animate-counter-up">
+        {formatNumber(displayValue)}
+        {suffix}
+      </div>
+      <div className="text-[#B1BAC5] font-medium uppercase tracking-wider text-sm">{label}</div>
+    </div>
+  )
 }
 
 export default function HomePage() {
@@ -658,7 +722,7 @@ export default function HomePage() {
           </p>
         </div>
 
-        <div className="max-w-4xl mx-auto glass-effect rounded-3xl p-12 md:p-16">
+        <div className="max-w-4xl mx-auto glass-effect rounded-3xl p-12 md:p-16 hover:border-[#005FD7]/30 transition-all duration-300 animate-fade-in-up">
           <p className="text-2xl md:text-3xl text-[#F4F5F7] leading-relaxed mb-8 text-center">
             <span className="text-[#005FD7] font-bold">La formazione non funziona.</span>
           </p>
@@ -678,49 +742,34 @@ export default function HomePage() {
         </div>
 
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-          {[
-            {
-              label: "Membri Attivi",
-              value: stats.totalUsers,
-              icon: <FiUsers />,
-              suffix: "+",
-            },
-            {
-              label: "Live al Mese",
-              value: stats.liveEvents,
-              icon: <FiPlay />,
-              suffix: "",
-            },
-            {
-              label: "Post Community",
-              value: stats.communityPosts,
-              icon: <FiTrendingUp />,
-              suffix: "+",
-            },
-            {
-              label: "Ore On-Demand",
-              value: stats.hoursContent,
-              icon: <FiAward />,
-              suffix: "h",
-            },
-          ].map((stat, index) => (
-            <div
-              key={index}
-              className="glass-effect rounded-3xl p-8 hover:scale-105 transition-all duration-300 group animate-scale-in"
-              style={{ animationDelay: `${index * 150}ms` }}
-            >
-              <div
-                className={`w-16 h-16 mx-auto mb-6 rounded-2xl bg-[#005FD7] flex items-center justify-center text-3xl group-hover:rotate-12 transition-transform animate-electric-pulse`}
-              >
-                {stat.icon}
-              </div>
-              <div className="text-5xl md:text-6xl font-black mb-2 text-gradient">
-                {formatNumber(stat.value)}
-                {stat.suffix}
-              </div>
-              <div className="text-[#B1BAC5] font-medium uppercase tracking-wider text-sm">{stat.label}</div>
-            </div>
-          ))}
+          <StatCard
+            label="Membri Attivi"
+            value={stats.totalUsers}
+            icon={<FiUsers />}
+            suffix="+"
+            index={0}
+          />
+          <StatCard
+            label="Live al Mese"
+            value={stats.liveEvents}
+            icon={<FiPlay />}
+            suffix=""
+            index={1}
+          />
+          <StatCard
+            label="Post Community"
+            value={stats.communityPosts}
+            icon={<FiTrendingUp />}
+            suffix="+"
+            index={2}
+          />
+          <StatCard
+            label="Ore On-Demand"
+            value={stats.hoursContent}
+            icon={<FiAward />}
+            suffix="h"
+            index={3}
+          />
         </div>
       </section>
 

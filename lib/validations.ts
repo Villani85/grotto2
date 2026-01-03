@@ -3,6 +3,7 @@ import { z } from "zod"
 // Post validation
 export const createPostSchema = z.object({
   text: z.string().min(1, "Il testo del post è obbligatorio").max(5000, "Il post non può superare i 5000 caratteri"),
+  type: z.enum(["insight", "challenge", "domanda"]).optional().default("insight"),
 })
 
 // Comment validation

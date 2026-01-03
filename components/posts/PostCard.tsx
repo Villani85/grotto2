@@ -46,7 +46,7 @@ export function PostCard({ post, onLikeChange }: PostCardProps) {
   }
 
   return (
-    <Card className="hover:border-primary/30 hover:shadow-md hover:-translate-y-1 transition-all duration-300 motion-reduce:transition-none motion-reduce:hover:translate-y-0">
+    <Card className="hover:border-[#005FD7]/50 hover:shadow-lg hover:-translate-y-1 transition-all duration-200 animate-post-appear">
       <CardHeader>
         <div className="flex items-start gap-4">
           <Link href={`/u/${post.authorId}`}>

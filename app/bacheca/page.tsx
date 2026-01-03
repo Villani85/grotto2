@@ -1,15 +1,16 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect } from "react"
 import { SubscriptionRequired } from "@/components/SubscriptionRequired"
 import { Card, CardContent } from "@/components/ui/card"
-import { PostComposerMagnetic, type PostComposerMagneticRef } from "@/components/posts/PostComposerMagnetic"
-import { PostCard } from "@/components/posts/PostCard"
-import { PostListSkeleton } from "@/components/posts/PostListSkeleton"
-import { PageHeader } from "@/components/layout/PageHeader"
-import { BachecaSidebar } from "@/components/posts/BachecaSidebar"
+import { PostComposerV2 } from "@/components/posts/PostComposerV2"
+import { PostCardV2 } from "@/components/posts/PostCardV2"
+import { CommentsThread } from "@/components/posts/CommentsThread"
+import { LoadingSkeletonBacheca } from "@/components/posts/LoadingSkeletonBacheca"
+import { BachecaFilters } from "@/components/posts/BachecaFilters"
+import { BachecaMiniLeaderboard } from "@/components/posts/BachecaMiniLeaderboard"
 import { Button } from "@/components/ui/button"
-import { FiRefreshCw } from "react-icons/fi"
+import type { PostType } from "@/components/posts/PostComposerV2"
 
 interface Post {
   id: string
@@ -20,6 +21,7 @@ interface Post {
   createdAt: string
   likesCount: number
   commentsCount: number
+  type?: PostType
 }
 
 export default function BachecaPage() {
@@ -27,7 +29,7 @@ export default function BachecaPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [nextCursor, setNextCursor] = useState<string | null>(null)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
-  const composerRef = useRef<PostComposerMagneticRef>(null)
+  const [selectedType, setSelectedType] = useState<PostType | "all">("all")
 
   const fetchPosts = async (cursor: string | null = null, append: boolean = false) => {
     try {
@@ -82,46 +84,56 @@ export default function BachecaPage() {
     )
   }
 
+  // Filter posts by type
+  const filteredPosts = selectedType === "all"
+    ? posts
+    : posts.filter((post) => (post.type || "insight") === selectedType)
+
   return (
     <SubscriptionRequired>
-      <div className="py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-6">
-          {/* Main Content */}
-          <div className="space-y-6">
-            {/* Page Header */}
-            <PageHeader
-              title="Bacheca"
-              subtitle="Condividi spunti, risorse e riflessioni con la community."
-              action={{
-                label: "Scrivi un post",
-                onClick: () => {
-                  // Scroll to composer
-                  document.getElementById("post-composer")?.scrollIntoView({ behavior: "smooth" })
-                  // Expand composer after scroll
-                  setTimeout(() => {
-                    composerRef.current?.expand()
-                  }, 200)
-                },
-              }}
-            />
-
-            {/* Post Composer Magnetic */}
-            <div id="post-composer">
-              <PostComposerMagnetic ref={composerRef} onPostCreated={handlePostCreated} />
+      <div className="py-6 md:py-8">
+        <div className="grid grid-cols-12 gap-4 md:gap-6">
+          {/* Left Sidebar - Filters & Quick Actions (Desktop: col-span-3, Mobile: hidden) */}
+          <div className="hidden md:block md:col-span-3">
+            <div className="sticky top-24 space-y-4">
+              <BachecaFilters selectedType={selectedType} onTypeChange={setSelectedType} />
             </div>
+          </div>
+
+          {/* Center - Composer + Feed (Desktop: col-span-6, Mobile: col-span-12) */}
+          <div className="col-span-12 md:col-span-6 space-y-4">
+            {/* Post Composer */}
+            <PostComposerV2 onPostCreated={handlePostCreated} />
 
             {/* Posts List */}
             {isLoading ? (
-              <PostListSkeleton count={4} />
-            ) : posts.length === 0 ? (
-              <Card>
+              <LoadingSkeletonBacheca />
+            ) : filteredPosts.length === 0 ? (
+              <Card className="border-2 border-dashed border-muted">
                 <CardContent className="p-12 text-center">
-                  <p className="text-muted-foreground">Nessun post ancora. Sii il primo a condividere qualcosa!</p>
+                  <div className="w-20 h-20 mx-auto mb-6 bg-[#005FD7]/10 rounded-full flex items-center justify-center">
+                    <span className="text-4xl">📝</span>
+                  </div>
+                  <h3 className="text-xl font-bold mb-2">Nessun post ancora</h3>
+                  <p className="text-muted-foreground mb-6">
+                    {selectedType === "all"
+                      ? "Sii il primo a condividere qualcosa con la community!"
+                      : `Nessun post di tipo "${selectedType}" trovato.`}
+                  </p>
+                  {selectedType !== "all" && (
+                    <Button
+                      variant="outline"
+                      onClick={() => setSelectedType("all")}
+                      className="mb-4"
+                    >
+                      Mostra tutti i post
+                    </Button>
+                  )}
                 </CardContent>
               </Card>
             ) : (
               <div className="space-y-4">
-                {posts.map((post, index) => (
+                {filteredPosts.map((post, index) => (
                   <div
                     key={post.id}
                     className="opacity-0 animate-slide-up"
@@ -131,7 +143,7 @@ export default function BachecaPage() {
                       animationDuration: "0.4s",
                     }}
                   >
-                    <PostCard post={post} onLikeChange={handleLikeChange} />
+                    <PostCardV2 post={post} onLikeChange={handleLikeChange} />
                   </div>
                 ))}
 
@@ -150,10 +162,10 @@ export default function BachecaPage() {
             )}
           </div>
 
-          {/* Sidebar (Desktop only) */}
-          <div className="hidden lg:block">
-            <div className="sticky top-24">
-              <BachecaSidebar />
+          {/* Right Sidebar - Mini Leaderboard (Desktop: col-span-3, Mobile: hidden) */}
+          <div className="hidden md:block md:col-span-3">
+            <div className="sticky top-24 space-y-4">
+              <BachecaMiniLeaderboard />
             </div>
           </div>
         </div>

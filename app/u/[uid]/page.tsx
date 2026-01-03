@@ -21,6 +21,7 @@ import {
   FiTrendingUp,
   FiExternalLink,
 } from "react-icons/fi"
+import { Trophy } from "lucide-react"
 import { getPeriodId } from "@/lib/neurocredits-rules"
 import Link from "next/link"
 
@@ -180,7 +181,7 @@ export default function PublicProfilePage() {
                   </div>
                   <div>
                     <div className="flex items-center gap-2 mb-1">
-                      <FaTrophy className="h-4 w-4 text-yellow-500" />
+                      <Trophy className="h-4 w-4 text-yellow-500" />
                       <span className="text-sm text-muted-foreground">NeuroCredits</span>
                     </div>
                     <p className="text-xl font-bold">{derivedStats.neuroCredits_total.toLocaleString()}</p>

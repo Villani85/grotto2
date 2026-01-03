@@ -43,6 +43,7 @@ export async function GET(request: NextRequest) {
         authorName: data.authorName || "",
         authorAvatarUrl: data.authorAvatarUrl || null,
         text: data.text || "",
+        type: data.type || "insight", // Default to "insight" if not set
         createdAt: data.createdAt?.toDate?.()?.toISOString() || new Date(data.createdAt).toISOString(),
         likesCount: data.likesCount || 0,
         commentsCount: data.commentsCount || 0,
@@ -75,6 +76,7 @@ export async function POST(request: NextRequest) {
         authorName: "Demo User",
         authorAvatarUrl: null,
         text: validatedData.text,
+        type: validatedData.type || "insight",
         createdAt: new Date().toISOString(),
         likesCount: 0,
         commentsCount: 0,
@@ -102,6 +104,7 @@ export async function POST(request: NextRequest) {
       authorName,
       authorAvatarUrl,
       text: validatedData.text.trim(),
+      type: validatedData.type || "insight", // Default to "insight" if not provided
       createdAt: new Date(),
       likesCount: 0,
       commentsCount: 0,
@@ -160,6 +163,7 @@ export async function POST(request: NextRequest) {
       authorName: postData?.authorName,
       authorAvatarUrl: postData?.authorAvatarUrl,
       text: postData?.text,
+      type: postData?.type || "insight",
       createdAt: postData?.createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
       likesCount: postData?.likesCount || 0,
       commentsCount: postData?.commentsCount || 0,

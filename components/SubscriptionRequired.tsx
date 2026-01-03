@@ -39,8 +39,11 @@ export function SubscriptionRequired({ children }: SubscriptionRequiredProps) {
   // Admins have access to everything regardless of subscription
   const hasActiveSubscription = user.subscriptionStatus === "active"
   const isAdmin = user.isAdmin || false
+  
+  // In demo mode or if subscriptionStatus is undefined, allow access
+  const allowAccess = hasActiveSubscription || isAdmin || !user.subscriptionStatus
 
-  if (!hasActiveSubscription && !isAdmin) {
+  if (!allowAccess) {
     return (
       <div className="max-w-2xl mx-auto py-12">
         <Alert className="border-accent">
