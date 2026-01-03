@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { getFirebaseIdToken } from "@/lib/api-helpers"
 import { useToast } from "@/hooks/use-toast"
-import { Settings, Save, Publish, FileText } from "lucide-react"
+import { Settings, Save, Send, FileText } from "lucide-react"
 
 interface NeuroCreditRule {
   points: number
@@ -219,7 +219,7 @@ export default function AdminNeuroCreditsPage() {
             )}
             {config?.draft && (
               <Button onClick={publishDraft} disabled={isSaving} className="bg-green-600 hover:bg-green-700">
-                <Publish className="h-4 w-4 mr-2" />
+                <Send className="h-4 w-4 mr-2" />
                 Pubblica Bozza
               </Button>
             )}
@@ -430,7 +430,7 @@ export default function AdminNeuroCreditsPage() {
                         </p>
                       </div>
                       <Button onClick={publishDraft} disabled={isSaving} className="w-full bg-green-600 hover:bg-green-700">
-                        <Publish className="h-4 w-4 mr-2" />
+                        <Send className="h-4 w-4 mr-2" />
                         {isSaving ? "Pubblicazione..." : "Pubblica Bozza"}
                       </Button>
                     </div>
