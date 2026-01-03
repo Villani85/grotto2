@@ -80,14 +80,34 @@ export default function NeuroCreditsPage() {
   const fetchLeaderboard = async () => {
     try {
       setIsLoading(true)
-      const response = await fetch(`/api/leaderboard?period=${period}&metric=${metric}&limit=50`)
-      if (response.ok) {
-        const data = await response.json()
-        setEntries(data.entries || [])
-        setMeSummary(data.me || null)
+      
+      // Get token for Authorization header (if available)
+      const token = await getFirebaseIdToken()
+      const headers: HeadersInit = {}
+      if (token) {
+        headers.Authorization = `Bearer ${token}`
       }
+      
+      const response = await fetch(`/api/leaderboard?period=${period}&metric=${metric}&limit=50`, {
+        headers,
+      })
+      
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error("[NeuroCredits] Error fetching leaderboard:", response.status, errorText)
+        setEntries([])
+        setMeSummary(null)
+        return
+      }
+      
+      const data = await response.json()
+      console.log("[NeuroCredits] Leaderboard loaded:", { entries: data.entries?.length || 0, me: data.me })
+      setEntries(data.entries || [])
+      setMeSummary(data.me || null)
     } catch (error) {
-      console.error("Error fetching leaderboard:", error)
+      console.error("[NeuroCredits] Error fetching leaderboard:", error)
+      setEntries([])
+      setMeSummary(null)
     } finally {
       setIsLoading(false)
     }
@@ -96,7 +116,10 @@ export default function NeuroCreditsPage() {
   const fetchMyStats = async () => {
     try {
       const token = await getFirebaseIdToken()
-      if (!token) return
+      if (!token) {
+        console.warn("[NeuroCredits] No token available")
+        return
+      }
 
       const response = await fetch("/api/neurocredits/me", {
         headers: {
@@ -104,12 +127,17 @@ export default function NeuroCreditsPage() {
         },
       })
 
-      if (response.ok) {
-        const data = await response.json()
-        setMyStats(data)
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error("[NeuroCredits] Error fetching stats:", response.status, errorText)
+        return
       }
+
+      const data = await response.json()
+      console.log("[NeuroCredits] Stats loaded:", data)
+      setMyStats(data)
     } catch (error) {
-      console.error("Error fetching my stats:", error)
+      console.error("[NeuroCredits] Error fetching my stats:", error)
     }
   }
 

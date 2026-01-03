@@ -44,26 +44,21 @@ export function generateEventId(payload: NeuroCreditEventPayload): string {
 }
 
 /**
- * Update daily cap counter (inside transaction)
+ * Write daily cap counter (inside transaction, NO reads - data must be pre-calculated)
  */
-async function updateDailyCap(
+function writeDailyCap(
   transaction: any,
-  db: any,
-  uid: string,
+  capRef: any,
   eventType: NeuroCreditEventType,
-  today: string
+  currentCapData: any
 ) {
   const rule = NEUROCREDITS_RULES[eventType]
   if (!rule.hasDailyCap) {
     return // No cap to update
   }
 
-  const capRef = db.collection("users").doc(uid).collection("dailyCaps").doc(today)
-
   if (eventType === "POST_CREATED") {
-    // Get current value in transaction (synchronous)
-    const capDoc = await transaction.get(capRef)
-    const currentValue = capDoc.exists ? (capDoc.data()?.postCreditsUsed || 0) : 0
+    const currentValue = currentCapData?.postCreditsUsed || 0
     transaction.set(
       capRef,
       {
@@ -73,9 +68,7 @@ async function updateDailyCap(
       { merge: true }
     )
   } else if (eventType === "COMMENT_CREATED") {
-    // Get current value in transaction (synchronous)
-    const capDoc = await transaction.get(capRef)
-    const currentValue = capDoc.exists ? (capDoc.data()?.commentCreditsUsed || 0) : 0
+    const currentValue = currentCapData?.commentCreditsUsed || 0
     transaction.set(
       capRef,
       {
@@ -85,9 +78,7 @@ async function updateDailyCap(
       { merge: true }
     )
   } else if (eventType === "VIDEO_COMPLETED") {
-    // Get current value in transaction (synchronous)
-    const capDoc = await transaction.get(capRef)
-    const currentValue = capDoc.exists ? (capDoc.data()?.videoCreditsUsed || 0) : 0
+    const currentValue = currentCapData?.videoCreditsUsed || 0
     transaction.set(
       capRef,
       {
@@ -136,25 +127,53 @@ export async function applyEvent(payload: NeuroCreditEventPayload): Promise<{
 
   try {
     await db.runTransaction(async (transaction) => {
-      // Check if event already exists (idempotency)
+      // ============================================
+      // FASE 1: TUTTE LE LETTURE (prima di qualsiasi scrittura)
+      // ============================================
       const eventRef = db.collection("neurocredit_events").doc(eventId)
-      const eventDoc = await transaction.get(eventRef)
+      const userRef = db.collection("users").doc(payload.targetUid)
+      const allTimeEntryRef = db.collection("leaderboards").doc("all_time").collection("entries").doc(payload.targetUid)
+      const monthlyEntryRef = db
+        .collection("leaderboards")
+        .doc(periodId)
+        .collection("entries")
+        .doc(payload.targetUid)
+      
+      // Prepare capRef (only if needed)
+      const rule = NEUROCREDITS_RULES[payload.type]
+      const capRef = rule.hasDailyCap
+        ? db.collection("users").doc(payload.targetUid).collection("dailyCaps").doc(today)
+        : null
 
+      // Execute all reads in parallel
+      const [eventDoc, userDoc, allTimeEntryDoc, monthlyEntryDoc, capDoc] = await Promise.all([
+        transaction.get(eventRef),
+        transaction.get(userRef),
+        transaction.get(allTimeEntryRef),
+        transaction.get(monthlyEntryRef),
+        capRef ? transaction.get(capRef) : Promise.resolve(null),
+      ])
+
+      // Check idempotency early
       if (eventDoc.exists) {
         // Event already applied - idempotent return
         return
       }
 
-      // Check daily cap inside transaction
-      const rule = NEUROCREDITS_RULES[payload.type]
+      // Validate user exists
+      if (!userDoc.exists) {
+        throw new Error(`User ${payload.targetUid} not found`)
+      }
+
+      // ============================================
+      // FASE 2: CALCOLI IN MEMORIA (dopo letture, prima di scritture)
+      // ============================================
+      const userData = userDoc.data()
+      const capData = capDoc?.exists ? capDoc.data() : {}
+      
+      // Calculate cap status
       let capReached = false
-      let neuroCreditsToAward = payload.deltaNeuroCredits
-
       if (rule.hasDailyCap) {
-        const capRef = db.collection("users").doc(payload.targetUid).collection("dailyCaps").doc(today)
-        const capDoc = await transaction.get(capRef)
-        const capData = capDoc.exists ? capDoc.data() : {}
-
         if (payload.type === "POST_CREATED") {
           capReached = (capData.postCreditsUsed || 0) >= rule.dailyCap!
         } else if (payload.type === "COMMENT_CREATED") {
@@ -164,11 +183,33 @@ export async function applyEvent(payload: NeuroCreditEventPayload): Promise<{
         } else if (payload.type === "DAILY_ACTIVE") {
           capReached = capData.dailyActiveUsed === true
         }
-
-        if (capReached) {
-          neuroCreditsToAward = 0
-        }
       }
+
+      const neuroCreditsToAward = capReached ? 0 : payload.deltaNeuroCredits
+
+      // Calculate user totals
+      const currentNeuroCredits = userData?.neuroCredits_total || 0
+      const currentVideosCompleted = userData?.videosCompleted_total || 0
+      const currentActiveDays = userData?.activeDays_total || 0
+
+      // Calculate monthly maps
+      const neuroCreditsMonthly = { ...(userData?.neuroCredits_monthly || {}) }
+      const videosCompletedMonthly = { ...(userData?.videosCompleted_monthly || {}) }
+      const activeDaysMonthly = { ...(userData?.activeDays_monthly || {}) }
+
+      neuroCreditsMonthly[periodId] = (neuroCreditsMonthly[periodId] || 0) + neuroCreditsToAward
+      if (payload.deltaVideosCompleted) {
+        videosCompletedMonthly[periodId] = (videosCompletedMonthly[periodId] || 0) + payload.deltaVideosCompleted
+      }
+      if (payload.deltaActiveDays) {
+        activeDaysMonthly[periodId] = (activeDaysMonthly[periodId] || 0) + payload.deltaActiveDays
+      }
+
+      const newNeuroCreditsTotal = currentNeuroCredits + neuroCreditsToAward
+
+      // Calculate leaderboard data
+      const allTimeData = allTimeEntryDoc.exists ? allTimeEntryDoc.data() : {}
+      const monthlyData = monthlyEntryDoc.exists ? monthlyEntryDoc.data() : {}
 
       // Log event creation
       console.log(`[NeuroCredits] 🎯 Applying event:`, {
@@ -180,6 +221,10 @@ export async function applyEvent(payload: NeuroCreditEventPayload): Promise<{
         capReached,
       })
 
+      // ============================================
+      // FASE 3: TUTTE LE SCRITTURE (dopo tutte le letture)
+      // ============================================
+      
       // Create event record
       transaction.set(eventRef, {
         type: payload.type,
@@ -193,41 +238,7 @@ export async function applyEvent(payload: NeuroCreditEventPayload): Promise<{
         createdAt: new Date(),
       })
 
-      console.log(`[NeuroCredits] ✅ Event created: ${eventId}`)
-
-      // Update daily cap if needed (before awarding credits)
-      if (!capReached && rule.hasDailyCap) {
-        await updateDailyCap(transaction, db, payload.targetUid, payload.type, today)
-      }
-
       // Update user document
-      const userRef = db.collection("users").doc(payload.targetUid)
-      const userDoc = await transaction.get(userRef)
-
-      if (!userDoc.exists) {
-        throw new Error(`User ${payload.targetUid} not found`)
-      }
-
-      const userData = userDoc.data()
-      const currentNeuroCredits = userData?.neuroCredits_total || 0
-      const currentVideosCompleted = userData?.videosCompleted_total || 0
-      const currentActiveDays = userData?.activeDays_total || 0
-
-      // Update monthly maps
-      const neuroCreditsMonthly = userData?.neuroCredits_monthly || {}
-      const videosCompletedMonthly = userData?.videosCompleted_monthly || {}
-      const activeDaysMonthly = userData?.activeDays_monthly || {}
-
-      neuroCreditsMonthly[periodId] = (neuroCreditsMonthly[periodId] || 0) + neuroCreditsToAward
-      if (payload.deltaVideosCompleted) {
-        videosCompletedMonthly[periodId] = (videosCompletedMonthly[periodId] || 0) + payload.deltaVideosCompleted
-      }
-      if (payload.deltaActiveDays) {
-        activeDaysMonthly[periodId] = (activeDaysMonthly[periodId] || 0) + payload.deltaActiveDays
-      }
-
-      // Update user
-      const newNeuroCreditsTotal = currentNeuroCredits + neuroCreditsToAward
       transaction.update(userRef, {
         neuroCredits_total: newNeuroCreditsTotal,
         neuroCredits_monthly: neuroCreditsMonthly,
@@ -237,28 +248,6 @@ export async function applyEvent(payload: NeuroCreditEventPayload): Promise<{
         activeDays_monthly: activeDaysMonthly,
         updatedAt: new Date(),
       })
-
-      console.log(`[NeuroCredits] 📊 Updated totals:`, {
-        targetUid: payload.targetUid,
-        neuroCredits_total: newNeuroCreditsTotal,
-        neuroCredits_monthly: neuroCreditsMonthly[periodId],
-        periodId,
-      })
-
-      // Update leaderboard entries
-      const allTimeEntryRef = db.collection("leaderboards").doc("all_time").collection("entries").doc(payload.targetUid)
-      const monthlyEntryRef = db
-        .collection("leaderboards")
-        .doc(periodId)
-        .collection("entries")
-        .doc(payload.targetUid)
-
-      // Get current leaderboard entries
-      const allTimeEntryDoc = await transaction.get(allTimeEntryRef)
-      const monthlyEntryDoc = await transaction.get(monthlyEntryRef)
-
-      const allTimeData = allTimeEntryDoc.exists ? allTimeEntryDoc.data() : {}
-      const monthlyData = monthlyEntryDoc.exists ? monthlyEntryDoc.data() : {}
 
       // Update all-time leaderboard
       transaction.set(
@@ -287,6 +276,26 @@ export async function applyEvent(payload: NeuroCreditEventPayload): Promise<{
         },
         { merge: true }
       )
+
+      // Update daily cap (only if credits awarded and has cap)
+      if (!capReached && rule.hasDailyCap && capRef) {
+        writeDailyCap(transaction, capRef, payload.type, capData)
+      }
+
+      console.log(`[NeuroCredits] ✅ TX OK:`, {
+        eventId,
+        applied: true,
+        neuroCreditsAwarded: neuroCreditsToAward,
+        capReached,
+        newTotal: newNeuroCreditsTotal,
+      })
+
+      console.log(`[NeuroCredits] 📊 Updated totals:`, {
+        targetUid: payload.targetUid,
+        neuroCredits_total: newNeuroCreditsTotal,
+        neuroCredits_monthly: neuroCreditsMonthly[periodId],
+        periodId,
+      })
     })
 
     // Fetch the event to get the actual neuroCredits awarded
