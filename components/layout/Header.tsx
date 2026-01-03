@@ -4,8 +4,17 @@ import { useState, useEffect } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useAuth } from "@/context/AuthContext"
-import { FiMenu, FiX, FiLogOut, FiMessageSquare, FiUser, FiMessageCircle, FiSettings, FiBookOpen, FiPlay } from "react-icons/fi"
-import { FaTrophy } from "react-icons/fa"
+import { FiMenu, FiX, FiLogOut, FiUser, FiSettings } from "react-icons/fi"
+import { Trophy, ChevronDown, LogOut, User, Settings } from "lucide-react"
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 
 const Header = () => {
   const { user, logout } = useAuth()
@@ -86,45 +95,91 @@ const Header = () => {
           </nav>
 
           {/* User Actions */}
-          <div className="hidden md:flex items-center space-x-4">
+          <div className="hidden md:flex items-center gap-3">
             {user ? (
               <>
                 {user.isAdmin && (
                   <Link
                     href="/admin/users"
-                    className="flex items-center space-x-2 px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg transition-colors font-medium"
+                    className="flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700 text-white rounded-md transition-all duration-200 font-medium text-sm shadow-md hover:shadow-lg"
                   >
-                    <FiSettings />
+                    <Settings className="h-4 w-4" />
                     <span>Admin</span>
                   </Link>
                 )}
-                <div className="flex items-center space-x-3">
-                  <div className="relative">
-                    <div className="w-12 h-12 bg-gradient-to-br from-[#005FD7] to-[#0051b8] rounded-full flex items-center justify-center shadow-lg hover:shadow-xl transition-shadow">
-                      <span className="font-bold text-white">{getUserInitial()}</span>
-                    </div>
-                  </div>
-                  <div>
-                    <p className="font-medium">{user.nickname || user.email || "Utente"}</p>
-                    <p className="text-xs text-gray-400">Livello {getUserLevel()}</p>
-                  </div>
-                </div>
-                <button
-                  onClick={logout}
-                  className="flex items-center space-x-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors"
-                >
-                  <FiLogOut />
-                  <span>Logout</span>
-                </button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-800/50 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#005FD7]/50">
+                      <Avatar className="h-10 w-10 border-2 border-[#005FD7]/30 shadow-md">
+                        <AvatarImage src={user.avatarUrl} alt={user.nickname || user.email} />
+                        <AvatarFallback className="bg-gradient-to-br from-[#005FD7] to-[#0051b8] text-white font-semibold">
+                          {getUserInitial()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex flex-col items-start">
+                        <span className="text-sm font-semibold text-white">
+                          {user.nickname || user.email?.split("@")[0] || "Utente"}
+                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <Trophy className="h-3 w-3 text-yellow-400" />
+                          <span className="text-xs text-gray-400">Livello {getUserLevel()}</span>
+                        </div>
+                      </div>
+                      <ChevronDown className="h-4 w-4 text-gray-400" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56 bg-gray-900 border-gray-800">
+                    <DropdownMenuLabel className="px-3 py-2">
+                      <div className="flex flex-col space-y-1">
+                        <p className="text-sm font-medium text-white">
+                          {user.nickname || user.email?.split("@")[0] || "Utente"}
+                        </p>
+                        <p className="text-xs text-gray-400 truncate">{user.email}</p>
+                      </div>
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator className="bg-gray-800" />
+                    <DropdownMenuItem asChild>
+                      <Link
+                        href="/area-riservata/profile"
+                        className="flex items-center gap-2 cursor-pointer text-gray-300 hover:text-white hover:bg-gray-800"
+                      >
+                        <User className="h-4 w-4" />
+                        <span>Profilo</span>
+                      </Link>
+                    </DropdownMenuItem>
+                    {user.isAdmin && (
+                      <DropdownMenuItem asChild>
+                        <Link
+                          href="/admin/users"
+                          className="flex items-center gap-2 cursor-pointer text-gray-300 hover:text-white hover:bg-gray-800"
+                        >
+                          <Settings className="h-4 w-4" />
+                          <span>Pannello Admin</span>
+                        </Link>
+                      </DropdownMenuItem>
+                    )}
+                    <DropdownMenuSeparator className="bg-gray-800" />
+                    <DropdownMenuItem
+                      onClick={logout}
+                      className="flex items-center gap-2 cursor-pointer text-red-400 hover:text-red-300 hover:bg-red-950/20 focus:text-red-300 focus:bg-red-950/20"
+                    >
+                      <LogOut className="h-4 w-4" />
+                      <span>Logout</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </>
             ) : (
               <>
-                <Link href="/auth/login" className="px-4 py-2 text-gray-300 hover:text-white transition-colors">
+                <Link
+                  href="/auth/login"
+                  className="px-4 py-2 text-gray-300 hover:text-white transition-colors font-medium"
+                >
                   Login
                 </Link>
                 <Link
                   href="/auth/register"
-                  className="px-6 py-2 bg-[#005FD7] hover:bg-[#0051b8] rounded-lg font-medium transition-all"
+                  className="px-6 py-2 bg-gradient-to-r from-[#005FD7] to-[#0051b8] hover:from-[#0051b8] hover:to-[#0047a3] rounded-lg font-medium transition-all shadow-md hover:shadow-lg"
                 >
                   Registrati
                 </Link>
@@ -174,23 +229,47 @@ const Header = () => {
                         <span>Pannello Admin</span>
                       </Link>
                     )}
-                    <div className="flex items-center space-x-3 mb-4">
-                      <div className="w-12 h-12 bg-gradient-to-br from-[#005FD7] to-[#0051b8] rounded-full flex items-center justify-center shadow-lg">
-                        <span className="font-bold text-white">{getUserInitial()}</span>
-                      </div>
-                      <div>
-                        <p className="font-medium">{user.nickname || user.email || "Utente"}</p>
-                        <p className="text-sm text-gray-400">Livello {getUserLevel()}</p>
+                    <div className="flex items-center gap-3 mb-4 p-3 bg-gray-800/50 rounded-lg">
+                      <Avatar className="h-12 w-12 border-2 border-[#005FD7]/30 shadow-md">
+                        <AvatarImage src={user.avatarUrl} alt={user.nickname || user.email} />
+                        <AvatarFallback className="bg-gradient-to-br from-[#005FD7] to-[#0051b8] text-white font-semibold">
+                          {getUserInitial()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-white truncate">{user.nickname || user.email?.split("@")[0] || "Utente"}</p>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <Trophy className="h-3.5 w-3.5 text-yellow-400" />
+                          <span className="text-xs text-gray-400">Livello {getUserLevel()}</span>
+                        </div>
                       </div>
                     </div>
+                    <Link
+                      href="/area-riservata/profile"
+                      className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors mb-3"
+                      onClick={() => setIsMenuOpen(false)}
+                    >
+                      <User className="h-4 w-4" />
+                      <span>Profilo</span>
+                    </Link>
+                    {user.isAdmin && (
+                      <Link
+                        href="/admin/users"
+                        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700 text-white rounded-lg mb-3 font-medium transition-all"
+                        onClick={() => setIsMenuOpen(false)}
+                      >
+                        <Settings className="h-4 w-4" />
+                        <span>Pannello Admin</span>
+                      </Link>
+                    )}
                     <button
                       onClick={() => {
                         logout()
                         setIsMenuOpen(false)
                       }}
-                      className="w-full flex items-center justify-center space-x-2 px-4 py-3 bg-gray-800 hover:bg-gray-700 rounded-lg"
+                      className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-red-950/30 hover:bg-red-950/50 text-red-400 rounded-lg transition-colors border border-red-900/50"
                     >
-                      <FiLogOut />
+                      <LogOut className="h-4 w-4" />
                       <span>Logout</span>
                     </button>
                   </>
