@@ -1,6 +1,7 @@
 import { getAdminApp } from "./firebase-admin"
 import { isDemoMode } from "./env"
 import { NEUROCREDITS_RULES, getPeriodId, getTodayString, type NeuroCreditEventType } from "./neurocredits-rules"
+import { getActiveNeuroCreditsConfig, type NeuroCreditConfigRule } from "./neurocredits-config"
 
 export interface NeuroCreditEventPayload {
   type: NeuroCreditEventType
@@ -38,6 +39,10 @@ export function generateEventId(payload: NeuroCreditEventPayload): string {
       return `video_completed:${ref?.videoId}:${targetUid}`
     case "DAILY_ACTIVE":
       return `daily_active:${targetUid}:${ref?.date || getTodayString()}`
+    case "ADMIN_ADJUST":
+      // Include reason hash for idempotency (same admin, same user, same reason = same event)
+      const reasonHash = ref?.reason ? Buffer.from(ref.reason).toString("base64").slice(0, 16) : Date.now().toString()
+      return `admin_adjust:${targetUid}:${actorUid}:${reasonHash}`
     default:
       return `${type}:${targetUid}:${actorUid}:${Date.now()}`
   }
@@ -118,6 +123,29 @@ export async function applyEvent(payload: NeuroCreditEventPayload): Promise<{
     return { applied: false, eventId: generateEventId(payload), neuroCreditsAwarded: 0 }
   }
 
+  // Load active config (with cache + fallback)
+  const config = await getActiveNeuroCreditsConfig()
+  const configRule: NeuroCreditConfigRule | undefined = config.rules[payload.type]
+
+  // Check if event type is enabled
+  if (configRule && !configRule.enabled) {
+    console.log(`[NeuroCredits] Event type ${payload.type} is disabled in config`)
+    return { applied: false, eventId: generateEventId(payload), neuroCreditsAwarded: 0 }
+  }
+
+  // Determine points: use config if available, otherwise use payload.deltaNeuroCredits
+  // For ADMIN_ADJUST, always use payload.deltaNeuroCredits (set by admin)
+  let pointsToAward = payload.deltaNeuroCredits
+  if (payload.type !== "ADMIN_ADJUST" && configRule) {
+    pointsToAward = configRule.points
+  }
+
+  // Fallback to hardcoded rules if config rule not found
+  const fallbackRule = NEUROCREDITS_RULES[payload.type]
+  if (!configRule && fallbackRule) {
+    pointsToAward = fallbackRule.neuroCredits
+  }
+
   const { getFirestore } = await import("firebase-admin/firestore")
   const db = getFirestore(app)
 
@@ -139,9 +167,12 @@ export async function applyEvent(payload: NeuroCreditEventPayload): Promise<{
         .collection("entries")
         .doc(payload.targetUid)
       
+      // Determine daily cap: use config if available, otherwise fallback to hardcoded
+      const dailyCap = configRule?.dailyCap ?? (fallbackRule?.hasDailyCap ? fallbackRule.dailyCap : null)
+      const hasDailyCap = dailyCap !== null
+      
       // Prepare capRef (only if needed)
-      const rule = NEUROCREDITS_RULES[payload.type]
-      const capRef = rule.hasDailyCap
+      const capRef = hasDailyCap
         ? db.collection("users").doc(payload.targetUid).collection("dailyCaps").doc(today)
         : null
 
@@ -173,19 +204,19 @@ export async function applyEvent(payload: NeuroCreditEventPayload): Promise<{
       
       // Calculate cap status
       let capReached = false
-      if (rule.hasDailyCap) {
+      if (hasDailyCap && dailyCap !== null) {
         if (payload.type === "POST_CREATED") {
-          capReached = (capData.postCreditsUsed || 0) >= rule.dailyCap!
+          capReached = (capData.postCreditsUsed || 0) >= dailyCap
         } else if (payload.type === "COMMENT_CREATED") {
-          capReached = (capData.commentCreditsUsed || 0) >= rule.dailyCap!
+          capReached = (capData.commentCreditsUsed || 0) >= dailyCap
         } else if (payload.type === "VIDEO_COMPLETED") {
-          capReached = (capData.videoCreditsUsed || 0) >= rule.dailyCap!
+          capReached = (capData.videoCreditsUsed || 0) >= dailyCap
         } else if (payload.type === "DAILY_ACTIVE") {
           capReached = capData.dailyActiveUsed === true
         }
       }
 
-      const neuroCreditsToAward = capReached ? 0 : payload.deltaNeuroCredits
+      const neuroCreditsToAward = capReached ? 0 : pointsToAward
 
       // Calculate user totals
       const currentNeuroCredits = userData?.neuroCredits_total || 0
@@ -225,7 +256,7 @@ export async function applyEvent(payload: NeuroCreditEventPayload): Promise<{
       // FASE 3: TUTTE LE SCRITTURE (dopo tutte le letture)
       // ============================================
       
-      // Create event record
+      // Create event record (include configVersionId for audit)
       transaction.set(eventRef, {
         type: payload.type,
         targetUid: payload.targetUid,
@@ -235,6 +266,7 @@ export async function applyEvent(payload: NeuroCreditEventPayload): Promise<{
         deltaVideosCompleted: payload.deltaVideosCompleted || 0,
         deltaActiveDays: payload.deltaActiveDays || 0,
         ref: payload.ref || {},
+        configVersionId: config.versionId, // Audit: which config version was used
         createdAt: new Date(),
       })
 
@@ -278,7 +310,7 @@ export async function applyEvent(payload: NeuroCreditEventPayload): Promise<{
       )
 
       // Update daily cap (only if credits awarded and has cap)
-      if (!capReached && rule.hasDailyCap && capRef) {
+      if (!capReached && hasDailyCap && capRef) {
         writeDailyCap(transaction, capRef, payload.type, capData)
       }
 

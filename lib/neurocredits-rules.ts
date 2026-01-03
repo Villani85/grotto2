@@ -48,6 +48,12 @@ export const NEUROCREDITS_RULES = {
     hasDailyCap: true,
     dailyCap: 1, // Max 1 al giorno
   },
+  // Admin adjustment (no cap, can be negative)
+  ADMIN_ADJUST: {
+    neuroCredits: 0, // Will be set dynamically
+    description: "Aggiustamento amministratore",
+    hasDailyCap: false,
+  },
 } as const
 
 export type NeuroCreditEventType = keyof typeof NEUROCREDITS_RULES
