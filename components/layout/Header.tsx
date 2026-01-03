@@ -97,17 +97,7 @@ const Header = () => {
           {/* User Actions */}
           <div className="hidden md:flex items-center gap-3">
             {user ? (
-              <>
-                {user.isAdmin && (
-                  <Link
-                    href="/admin/users"
-                    className="flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700 text-white rounded-md transition-all duration-200 font-medium text-sm shadow-md hover:shadow-lg"
-                  >
-                    <Settings className="h-4 w-4" />
-                    <span>Admin</span>
-                  </Link>
-                )}
-                <DropdownMenu>
+              <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <button className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-800/50 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#005FD7]/50">
                       <Avatar className="h-10 w-10 border-2 border-[#005FD7]/30 shadow-md">
@@ -168,7 +158,6 @@ const Header = () => {
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
-              </>
             ) : (
               <>
                 <Link
