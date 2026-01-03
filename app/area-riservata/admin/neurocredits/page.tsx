@@ -11,6 +11,9 @@ import { Badge } from "@/components/ui/badge"
 import { getFirebaseIdToken } from "@/lib/api-helpers"
 import { useToast } from "@/hooks/use-toast"
 import { Settings, Save, Send, FileText } from "lucide-react"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Switch } from "@/components/ui/switch"
 
 interface NeuroCreditRule {
   points: number
@@ -52,6 +55,7 @@ export default function AdminNeuroCreditsPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [activeTab, setActiveTab] = useState("rules")
+  const [draftForm, setDraftForm] = useState<NeuroCreditConfig["draft"] | null>(null)
 
   useEffect(() => {
     if (!authLoading && user) {
@@ -87,6 +91,12 @@ export default function AdminNeuroCreditsPage() {
 
       const data = await response.json()
       setConfig(data)
+      // Initialize draft form if draft exists
+      if (data.draft) {
+        setDraftForm(JSON.parse(JSON.stringify(data.draft))) // Deep copy
+      } else {
+        setDraftForm(null)
+      }
     } catch (error: any) {
       console.error("Error loading config:", error)
       toast({
@@ -119,17 +129,78 @@ export default function AdminNeuroCreditsPage() {
         throw new Error(error.error || "Errore nel creare la bozza")
       }
 
+      const draftData = await response.json()
       toast({
         title: "Bozza creata",
         description: "La bozza è stata creata con successo",
       })
 
-      loadConfig()
+      await loadConfig()
+      // Initialize draft form with the new draft
+      if (draftData) {
+        setDraftForm(JSON.parse(JSON.stringify(draftData)))
+      }
     } catch (error: any) {
       console.error("Error creating draft:", error)
       toast({
         title: "Errore",
         description: error.message || "Impossibile creare la bozza",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const saveDraft = async () => {
+    if (!draftForm) {
+      toast({
+        title: "Errore",
+        description: "Nessuna bozza da salvare",
+        variant: "destructive",
+      })
+      return
+    }
+
+    try {
+      setIsSaving(true)
+      const token = await getFirebaseIdToken()
+      if (!token) {
+        throw new Error("Token non disponibile")
+      }
+
+      const response = await fetch("/api/admin/neurocredits/config/draft", {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          rules: draftForm.rules,
+          levels: draftForm.levels,
+          objectives: draftForm.objectives,
+          rewards: draftForm.rewards,
+          notes: draftForm.notes,
+        }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || "Errore nel salvare la bozza")
+      }
+
+      toast({
+        title: "Bozza salvata",
+        description: "Le modifiche sono state salvate con successo",
+      })
+
+      // Reload config to sync with server
+      await loadConfig()
+    } catch (error: any) {
+      console.error("Error saving draft:", error)
+      toast({
+        title: "Errore",
+        description: error.message || "Impossibile salvare la bozza",
         variant: "destructive",
       })
     } finally {
@@ -197,7 +268,9 @@ export default function AdminNeuroCreditsPage() {
     return null
   }
 
-  const workingConfig = config?.draft || config?.active
+  // Use draftForm if editing draft, otherwise use config
+  const workingConfig = draftForm || config?.draft || config?.active
+  const isEditingDraft = !!draftForm
 
   return (
     <SubscriptionRequired>
@@ -218,10 +291,16 @@ export default function AdminNeuroCreditsPage() {
               </Button>
             )}
             {config?.draft && (
-              <Button onClick={publishDraft} disabled={isSaving} className="bg-green-600 hover:bg-green-700">
-                <Send className="h-4 w-4 mr-2" />
-                Pubblica Bozza
-              </Button>
+              <>
+                <Button onClick={saveDraft} disabled={isSaving || !isEditingDraft} variant="outline">
+                  <Save className="h-4 w-4 mr-2" />
+                  Salva Bozza
+                </Button>
+                <Button onClick={publishDraft} disabled={isSaving} className="bg-green-600 hover:bg-green-700">
+                  <Send className="h-4 w-4 mr-2" />
+                  Pubblica Bozza
+                </Button>
+              </>
             )}
           </div>
         </div>
@@ -296,32 +375,111 @@ export default function AdminNeuroCreditsPage() {
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-1">
                             <span className="font-semibold">{eventType}</span>
-                            <Badge variant={rule.enabled ? "default" : "secondary"}>
-                              {rule.enabled ? "Abilitato" : "Disabilitato"}
-                            </Badge>
+                            {isEditingDraft ? (
+                              <div className="flex items-center gap-2">
+                                <Switch
+                                  checked={rule.enabled}
+                                  onCheckedChange={(checked) => {
+                                    if (draftForm) {
+                                      setDraftForm({
+                                        ...draftForm,
+                                        rules: {
+                                          ...draftForm.rules,
+                                          [eventType]: {
+                                            ...draftForm.rules[eventType],
+                                            enabled: checked,
+                                          },
+                                        },
+                                      })
+                                    }
+                                  }}
+                                />
+                                <Badge variant={rule.enabled ? "default" : "secondary"}>
+                                  {rule.enabled ? "Abilitato" : "Disabilitato"}
+                                </Badge>
+                              </div>
+                            ) : (
+                              <Badge variant={rule.enabled ? "default" : "secondary"}>
+                                {rule.enabled ? "Abilitato" : "Disabilitato"}
+                              </Badge>
+                            )}
                           </div>
                           {rule.description && (
                             <p className="text-sm text-muted-foreground">{rule.description}</p>
                           )}
                         </div>
                         <div className="flex items-center gap-4">
-                          <div className="text-right">
-                            <p className="text-sm text-muted-foreground">Punti</p>
-                            <p className="text-lg font-bold">{rule.points}</p>
+                          <div className={isEditingDraft ? "flex flex-col gap-1" : "text-right"}>
+                            <Label className="text-sm text-muted-foreground">Punti</Label>
+                            {isEditingDraft ? (
+                              <Input
+                                type="number"
+                                value={rule.points}
+                                onChange={(e) => {
+                                  if (draftForm) {
+                                    setDraftForm({
+                                      ...draftForm,
+                                      rules: {
+                                        ...draftForm.rules,
+                                        [eventType]: {
+                                          ...draftForm.rules[eventType],
+                                          points: parseInt(e.target.value) || 0,
+                                        },
+                                      },
+                                    })
+                                  }
+                                }}
+                                className="w-20"
+                              />
+                            ) : (
+                              <p className="text-lg font-bold">{rule.points}</p>
+                            )}
                           </div>
                           {rule.dailyCap !== null && (
-                            <div className="text-right">
-                              <p className="text-sm text-muted-foreground">Cap Giornaliero</p>
-                              <p className="text-lg font-bold">{rule.dailyCap}</p>
+                            <div className={isEditingDraft ? "flex flex-col gap-1" : "text-right"}>
+                              <Label className="text-sm text-muted-foreground">Cap Giornaliero</Label>
+                              {isEditingDraft ? (
+                                <Input
+                                  type="number"
+                                  value={rule.dailyCap || 0}
+                                  onChange={(e) => {
+                                    if (draftForm) {
+                                      setDraftForm({
+                                        ...draftForm,
+                                        rules: {
+                                          ...draftForm.rules,
+                                          [eventType]: {
+                                            ...draftForm.rules[eventType],
+                                            dailyCap: e.target.value ? parseInt(e.target.value) : null,
+                                          },
+                                        },
+                                      })
+                                    }
+                                  }}
+                                  className="w-20"
+                                />
+                              ) : (
+                                <p className="text-lg font-bold">{rule.dailyCap}</p>
+                              )}
                             </div>
                           )}
                         </div>
                       </div>
                     ))}
                   </div>
-                  <p className="text-xs text-muted-foreground mt-4">
-                    ⚠️ La modifica delle regole richiede l'aggiornamento della bozza. Usa "Crea Bozza" per iniziare.
-                  </p>
+                  {!isEditingDraft && (
+                    <p className="text-xs text-muted-foreground mt-4">
+                      ⚠️ La modifica delle regole richiede l'aggiornamento della bozza. Usa "Crea Bozza" per iniziare.
+                    </p>
+                  )}
+                  {isEditingDraft && (
+                    <div className="mt-4 flex justify-end">
+                      <Button onClick={saveDraft} disabled={isSaving}>
+                        <Save className="h-4 w-4 mr-2" />
+                        Salva Modifiche
+                      </Button>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>

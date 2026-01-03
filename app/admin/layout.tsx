@@ -1,6 +1,6 @@
 import type React from "react"
 import Link from "next/link"
-import { Users, BookOpen, Settings, Mail, Shield, Radio, Calendar } from "lucide-react"
+import { Users, BookOpen, Settings, Mail, Shield, Radio, Calendar, Coins } from "lucide-react"
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -50,6 +50,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             >
               <Settings className="h-4 w-4" />
               Impostazioni
+            </Link>
+            <Link
+              href="/area-riservata/admin/neurocredits"
+              className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-accent hover:text-accent-foreground transition-colors"
+            >
+              <Coins className="h-4 w-4" />
+              NeuroCredits
             </Link>
             <Link
               href="/admin/make-all-admin"
