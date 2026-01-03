@@ -10,16 +10,47 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { getFirebaseIdToken } from "@/lib/api-helpers"
 import { useToast } from "@/hooks/use-toast"
-import { Settings, Save, Send, FileText } from "lucide-react"
+import { Settings, Save, Send, FileText, Plus, Trash2, X } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
+import { Textarea } from "@/components/ui/textarea"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 interface NeuroCreditRule {
   points: number
   enabled: boolean
   dailyCap: number | null
   description?: string
+}
+
+interface NeuroCreditLevel {
+  id: number
+  name: string
+  minPoints: number
+  color?: string
+  icon?: string
+}
+
+interface NeuroCreditObjective {
+  id: string
+  title: string
+  metric: "neuroCredits" | "videosCompleted" | "activeDays" | "streak"
+  target: number
+  windowDays: number
+  rewardPoints: number
+  enabled: boolean
+}
+
+interface NeuroCreditReward {
+  id: string
+  title: string
+  description?: string
+  cost: number
+  enabled: boolean
+  stock: number | null
+  minLevel: number | null
+  expiresAt: string | null
 }
 
 interface NeuroCreditConfig {
@@ -30,9 +61,9 @@ interface NeuroCreditConfig {
     createdByUid: string
     notes?: string
     rules: Record<string, NeuroCreditRule>
-    levels: Array<{ id: number; name: string; minPoints: number; color?: string; icon?: string }>
-    objectives: Array<any>
-    rewards: Array<any>
+    levels: Array<NeuroCreditLevel>
+    objectives: Array<NeuroCreditObjective>
+    rewards: Array<NeuroCreditReward>
   }
   draft: {
     versionId: string
@@ -41,9 +72,9 @@ interface NeuroCreditConfig {
     createdByUid: string
     notes?: string
     rules: Record<string, NeuroCreditRule>
-    levels: Array<any>
-    objectives: Array<any>
-    rewards: Array<any>
+    levels: Array<NeuroCreditLevel>
+    objectives: Array<NeuroCreditObjective>
+    rewards: Array<NeuroCreditReward>
   } | null
 }
 
@@ -206,6 +237,90 @@ export default function AdminNeuroCreditsPage() {
     } finally {
       setIsSaving(false)
     }
+  }
+
+  // Helper functions for managing arrays
+  const addLevel = () => {
+    if (!draftForm) return
+    const maxId = draftForm.levels.length > 0 ? Math.max(...draftForm.levels.map((l) => l.id)) : 0
+    const newLevel: NeuroCreditLevel = {
+      id: maxId + 1,
+      name: `Level ${maxId + 1}`,
+      minPoints: 0,
+      color: undefined,
+      icon: undefined,
+    }
+    const updatedLevels = [...draftForm.levels, newLevel].sort((a, b) => a.minPoints - b.minPoints)
+    setDraftForm({ ...draftForm, levels: updatedLevels })
+  }
+
+  const updateLevel = (index: number, patch: Partial<NeuroCreditLevel>) => {
+    if (!draftForm) return
+    const updatedLevels = [...draftForm.levels]
+    updatedLevels[index] = { ...updatedLevels[index], ...patch }
+    updatedLevels.sort((a, b) => a.minPoints - b.minPoints)
+    setDraftForm({ ...draftForm, levels: updatedLevels })
+  }
+
+  const removeLevel = (index: number) => {
+    if (!draftForm) return
+    const updatedLevels = draftForm.levels.filter((_, i) => i !== index)
+    setDraftForm({ ...draftForm, levels: updatedLevels })
+  }
+
+  const addObjective = () => {
+    if (!draftForm) return
+    const newObjective: NeuroCreditObjective = {
+      id: crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 15),
+      title: "Nuovo Obiettivo",
+      metric: "neuroCredits",
+      target: 100,
+      windowDays: 7,
+      rewardPoints: 50,
+      enabled: true,
+    }
+    setDraftForm({ ...draftForm, objectives: [...draftForm.objectives, newObjective] })
+  }
+
+  const updateObjective = (index: number, patch: Partial<NeuroCreditObjective>) => {
+    if (!draftForm) return
+    const updatedObjectives = [...draftForm.objectives]
+    updatedObjectives[index] = { ...updatedObjectives[index], ...patch }
+    setDraftForm({ ...draftForm, objectives: updatedObjectives })
+  }
+
+  const removeObjective = (index: number) => {
+    if (!draftForm) return
+    const updatedObjectives = draftForm.objectives.filter((_, i) => i !== index)
+    setDraftForm({ ...draftForm, objectives: updatedObjectives })
+  }
+
+  const addReward = () => {
+    if (!draftForm) return
+    const newReward: NeuroCreditReward = {
+      id: crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 15),
+      title: "Nuovo Premio",
+      description: undefined,
+      cost: 100,
+      enabled: true,
+      stock: null,
+      minLevel: null,
+      expiresAt: null,
+    }
+    setDraftForm({ ...draftForm, rewards: [...draftForm.rewards, newReward] })
+  }
+
+  const updateReward = (index: number, patch: Partial<NeuroCreditReward>) => {
+    if (!draftForm) return
+    const updatedRewards = [...draftForm.rewards]
+    updatedRewards[index] = { ...updatedRewards[index], ...patch }
+    setDraftForm({ ...draftForm, rewards: updatedRewards })
+  }
+
+  const removeReward = (index: number) => {
+    if (!draftForm) return
+    const updatedRewards = draftForm.rewards.filter((_, i) => i !== index)
+    setDraftForm({ ...draftForm, rewards: updatedRewards })
   }
 
   const publishDraft = async () => {
@@ -491,15 +606,79 @@ export default function AdminNeuroCreditsPage() {
                   <CardDescription>Configura i livelli e le soglie di NeuroCredits</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-2">
-                    {workingConfig.levels?.map((level) => (
-                      <div key={level.id} className="flex items-center justify-between p-3 border rounded-lg">
-                        <div>
-                          <span className="font-semibold">Livello {level.id}: {level.name}</span>
-                        </div>
-                        <Badge variant="outline">{level.minPoints} punti minimi</Badge>
+                  {isEditingDraft && (
+                    <div className="mb-4">
+                      <Button onClick={addLevel} variant="outline" size="sm">
+                        <Plus className="h-4 w-4 mr-2" />
+                        Aggiungi Livello
+                      </Button>
+                    </div>
+                  )}
+                  <div className="space-y-4">
+                    {workingConfig.levels?.map((level, index) => (
+                      <div key={level.id} className="p-4 border rounded-lg space-y-3">
+                        {isEditingDraft ? (
+                          <>
+                            <div className="flex items-center justify-between">
+                              <Label className="text-sm font-semibold">Livello {level.id}</Label>
+                              <Button
+                                onClick={() => removeLevel(index)}
+                                variant="ghost"
+                                size="sm"
+                                className="text-destructive hover:text-destructive"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div>
+                                <Label>Nome</Label>
+                                <Input
+                                  value={level.name}
+                                  onChange={(e) => updateLevel(index, { name: e.target.value })}
+                                  placeholder="Nome livello"
+                                />
+                              </div>
+                              <div>
+                                <Label>Punti Minimi</Label>
+                                <Input
+                                  type="number"
+                                  value={level.minPoints}
+                                  onChange={(e) => updateLevel(index, { minPoints: parseInt(e.target.value) || 0 })}
+                                  placeholder="0"
+                                />
+                              </div>
+                              <div>
+                                <Label>Colore (opzionale)</Label>
+                                <Input
+                                  value={level.color || ""}
+                                  onChange={(e) => updateLevel(index, { color: e.target.value || undefined })}
+                                  placeholder="#000000"
+                                />
+                              </div>
+                              <div>
+                                <Label>Icona (opzionale)</Label>
+                                <Input
+                                  value={level.icon || ""}
+                                  onChange={(e) => updateLevel(index, { icon: e.target.value || undefined })}
+                                  placeholder="icon-name"
+                                />
+                              </div>
+                            </div>
+                          </>
+                        ) : (
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <span className="font-semibold">Livello {level.id}: {level.name}</span>
+                            </div>
+                            <Badge variant="outline">{level.minPoints} punti minimi</Badge>
+                          </div>
+                        )}
                       </div>
                     ))}
+                    {workingConfig.levels?.length === 0 && (
+                      <p className="text-muted-foreground text-center py-8">Nessun livello configurato</p>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -512,21 +691,112 @@ export default function AdminNeuroCreditsPage() {
                   <CardDescription>Configura gli obiettivi e le ricompense</CardDescription>
                 </CardHeader>
                 <CardContent>
+                  {isEditingDraft && (
+                    <div className="mb-4">
+                      <Button onClick={addObjective} variant="outline" size="sm">
+                        <Plus className="h-4 w-4 mr-2" />
+                        Aggiungi Obiettivo
+                      </Button>
+                    </div>
+                  )}
                   {workingConfig.objectives?.length === 0 ? (
                     <p className="text-muted-foreground text-center py-8">Nessun obiettivo configurato</p>
                   ) : (
-                    <div className="space-y-2">
-                      {workingConfig.objectives?.map((obj: any) => (
-                        <div key={obj.id} className="p-3 border rounded-lg">
-                          <div className="flex items-center justify-between">
-                            <span className="font-semibold">{obj.title}</span>
-                            <Badge variant={obj.enabled ? "default" : "secondary"}>
-                              {obj.enabled ? "Abilitato" : "Disabilitato"}
-                            </Badge>
-                          </div>
-                          <p className="text-sm text-muted-foreground mt-1">
-                            {obj.metric} → {obj.target} in {obj.windowDays} giorni → +{obj.rewardPoints} punti
-                          </p>
+                    <div className="space-y-4">
+                      {workingConfig.objectives?.map((obj, index) => (
+                        <div key={obj.id} className="p-4 border rounded-lg space-y-3">
+                          {isEditingDraft ? (
+                            <>
+                              <div className="flex items-center justify-between">
+                                <Label className="text-sm font-semibold">Obiettivo {index + 1}</Label>
+                                <Button
+                                  onClick={() => removeObjective(index)}
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-destructive hover:text-destructive"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="md:col-span-2">
+                                  <Label>Titolo</Label>
+                                  <Input
+                                    value={obj.title}
+                                    onChange={(e) => updateObjective(index, { title: e.target.value })}
+                                    placeholder="Titolo obiettivo"
+                                  />
+                                </div>
+                                <div>
+                                  <Label>Metrica</Label>
+                                  <Select
+                                    value={obj.metric}
+                                    onValueChange={(value: "neuroCredits" | "videosCompleted" | "activeDays" | "streak") =>
+                                      updateObjective(index, { metric: value })
+                                    }
+                                  >
+                                    <SelectTrigger>
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="neuroCredits">NeuroCredits</SelectItem>
+                                      <SelectItem value="videosCompleted">Video Completati</SelectItem>
+                                      <SelectItem value="activeDays">Giorni Attivi</SelectItem>
+                                      <SelectItem value="streak">Streak</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                                <div>
+                                  <Label>Target</Label>
+                                  <Input
+                                    type="number"
+                                    value={obj.target}
+                                    onChange={(e) => updateObjective(index, { target: parseInt(e.target.value) || 0 })}
+                                    placeholder="100"
+                                  />
+                                </div>
+                                <div>
+                                  <Label>Finestra (giorni)</Label>
+                                  <Input
+                                    type="number"
+                                    value={obj.windowDays}
+                                    onChange={(e) => updateObjective(index, { windowDays: parseInt(e.target.value) || 1 })}
+                                    placeholder="7"
+                                    min={1}
+                                    max={365}
+                                  />
+                                </div>
+                                <div>
+                                  <Label>Punti Ricompensa</Label>
+                                  <Input
+                                    type="number"
+                                    value={obj.rewardPoints}
+                                    onChange={(e) => updateObjective(index, { rewardPoints: parseInt(e.target.value) || 0 })}
+                                    placeholder="50"
+                                  />
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <Switch
+                                    checked={obj.enabled}
+                                    onCheckedChange={(checked) => updateObjective(index, { enabled: checked })}
+                                  />
+                                  <Label>Abilitato</Label>
+                                </div>
+                              </div>
+                            </>
+                          ) : (
+                            <>
+                              <div className="flex items-center justify-between">
+                                <span className="font-semibold">{obj.title}</span>
+                                <Badge variant={obj.enabled ? "default" : "secondary"}>
+                                  {obj.enabled ? "Abilitato" : "Disabilitato"}
+                                </Badge>
+                              </div>
+                              <p className="text-sm text-muted-foreground mt-1">
+                                {obj.metric} → {obj.target} in {obj.windowDays} giorni → +{obj.rewardPoints} punti
+                              </p>
+                            </>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -542,26 +812,137 @@ export default function AdminNeuroCreditsPage() {
                   <CardDescription>Catalogo premi riscattabili con NeuroCredits</CardDescription>
                 </CardHeader>
                 <CardContent>
+                  {isEditingDraft && (
+                    <div className="mb-4">
+                      <Button onClick={addReward} variant="outline" size="sm">
+                        <Plus className="h-4 w-4 mr-2" />
+                        Aggiungi Premio
+                      </Button>
+                    </div>
+                  )}
                   {workingConfig.rewards?.length === 0 ? (
                     <p className="text-muted-foreground text-center py-8">Nessun premio configurato</p>
                   ) : (
-                    <div className="space-y-2">
-                      {workingConfig.rewards?.map((reward: any) => (
-                        <div key={reward.id} className="p-3 border rounded-lg">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <span className="font-semibold">{reward.title}</span>
-                              {reward.description && (
-                                <p className="text-sm text-muted-foreground">{reward.description}</p>
+                    <div className="space-y-4">
+                      {workingConfig.rewards?.map((reward, index) => (
+                        <div key={reward.id} className="p-4 border rounded-lg space-y-3">
+                          {isEditingDraft ? (
+                            <>
+                              <div className="flex items-center justify-between">
+                                <Label className="text-sm font-semibold">Premio {index + 1}</Label>
+                                <Button
+                                  onClick={() => removeReward(index)}
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-destructive hover:text-destructive"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="md:col-span-2">
+                                  <Label>Titolo</Label>
+                                  <Input
+                                    value={reward.title}
+                                    onChange={(e) => updateReward(index, { title: e.target.value })}
+                                    placeholder="Titolo premio"
+                                  />
+                                </div>
+                                <div className="md:col-span-2">
+                                  <Label>Descrizione (opzionale)</Label>
+                                  <Textarea
+                                    value={reward.description || ""}
+                                    onChange={(e) => updateReward(index, { description: e.target.value || undefined })}
+                                    placeholder="Descrizione del premio"
+                                    rows={2}
+                                  />
+                                </div>
+                                <div>
+                                  <Label>Costo (NeuroCredits)</Label>
+                                  <Input
+                                    type="number"
+                                    value={reward.cost}
+                                    onChange={(e) => updateReward(index, { cost: parseInt(e.target.value) || 1 })}
+                                    placeholder="100"
+                                    min={1}
+                                  />
+                                </div>
+                                <div>
+                                  <Label>Stock (vuoto = illimitato)</Label>
+                                  <Input
+                                    type="number"
+                                    value={reward.stock === null ? "" : reward.stock}
+                                    onChange={(e) =>
+                                      updateReward(index, { stock: e.target.value ? parseInt(e.target.value) : null })
+                                    }
+                                    placeholder="Illimitato"
+                                    min={0}
+                                  />
+                                </div>
+                                <div>
+                                  <Label>Livello Minimo (opzionale)</Label>
+                                  <Input
+                                    type="number"
+                                    value={reward.minLevel === null ? "" : reward.minLevel}
+                                    onChange={(e) =>
+                                      updateReward(index, { minLevel: e.target.value ? parseInt(e.target.value) : null })
+                                    }
+                                    placeholder="Nessun limite"
+                                    min={1}
+                                  />
+                                </div>
+                                <div>
+                                  <Label>Scadenza (opzionale)</Label>
+                                  <Input
+                                    type="datetime-local"
+                                    value={
+                                      reward.expiresAt
+                                        ? new Date(reward.expiresAt).toISOString().slice(0, 16)
+                                        : ""
+                                    }
+                                    onChange={(e) =>
+                                      updateReward(index, {
+                                        expiresAt: e.target.value ? new Date(e.target.value).toISOString() : null,
+                                      })
+                                    }
+                                  />
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <Switch
+                                    checked={reward.enabled}
+                                    onCheckedChange={(checked) => updateReward(index, { enabled: checked })}
+                                  />
+                                  <Label>Disponibile</Label>
+                                </div>
+                              </div>
+                            </>
+                          ) : (
+                            <>
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <span className="font-semibold">{reward.title}</span>
+                                  {reward.description && (
+                                    <p className="text-sm text-muted-foreground">{reward.description}</p>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <Badge variant="outline">{reward.cost} NeuroCredits</Badge>
+                                  <Badge variant={reward.enabled ? "default" : "secondary"}>
+                                    {reward.enabled ? "Disponibile" : "Non disponibile"}
+                                  </Badge>
+                                </div>
+                              </div>
+                              {(reward.stock !== null || reward.minLevel !== null || reward.expiresAt) && (
+                                <div className="text-xs text-muted-foreground mt-2">
+                                  {reward.stock !== null && <span>Stock: {reward.stock} </span>}
+                                  {reward.minLevel !== null && <span>Livello min: {reward.minLevel} </span>}
+                                  {reward.expiresAt && (
+                                    <span>Scade: {new Date(reward.expiresAt).toLocaleDateString("it-IT")}</span>
+                                  )}
+                                </div>
                               )}
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <Badge variant="outline">{reward.cost} NeuroCredits</Badge>
-                              <Badge variant={reward.enabled ? "default" : "secondary"}>
-                                {reward.enabled ? "Disponibile" : "Non disponibile"}
-                              </Badge>
-                            </div>
-                          </div>
+                            </>
+                          )}
                         </div>
                       ))}
                     </div>

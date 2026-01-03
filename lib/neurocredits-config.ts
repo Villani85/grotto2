@@ -195,7 +195,7 @@ function getDefaultConfig(): NeuroCreditConfig {
         },
       ])
     ) as Record<NeuroCreditEventType, NeuroCreditConfigRule>,
-    levels: LEVELS.map((l) => ({
+    levels: DEFAULT_LEVELS.map((l) => ({
       id: l.level,
       name: `Level ${l.level}`,
       minPoints: l.creditsRequired,
