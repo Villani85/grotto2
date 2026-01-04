@@ -179,15 +179,7 @@ export default function HomePage() {
               <g className="animate-hemisphere-glow">
                 {/* Emisfero sinistro principale con lobi frontale, parietale, temporale, occipitale */}
                 <path
-                  d="M 300 120
-                     C 240 125, 190 145, 155 185
-                     C 140 205, 130 230, 125 255
-                     C 120 285, 120 315, 125 345
-                     C 130 375, 140 405, 155 430
-                     C 170 455, 190 475, 215 490
-                     C 240 505, 270 515, 295 520
-                     C 297 521, 299 521, 300 522
-                     L 300 120 Z"
+                  d="M 300 120 C 240 125, 190 145, 155 185 C 140 205, 130 230, 125 255 C 120 285, 120 315, 125 345 C 130 375, 140 405, 155 430 C 170 455, 190 475, 215 490 C 240 505, 270 515, 295 520 C 297 521, 299 521, 300 522 L 300 120 Z"
                   fill="rgba(0, 95, 215, 0.08)"
                   stroke="#005FD7"
                   strokeWidth="3"
@@ -317,15 +309,7 @@ export default function HomePage() {
               <g className="animate-hemisphere-glow" style={{ animationDelay: "0.5s" }}>
                 {/* Emisfero destro principale con lobi */}
                 <path
-                  d="M 300 120
-                     C 360 125, 410 145, 445 185
-                     C 460 205, 470 230, 475 255
-                     C 480 285, 480 315, 475 345
-                     C 470 375, 460 405, 445 430
-                     C 430 455, 410 475, 385 490
-                     C 360 505, 330 515, 305 520
-                     C 303 521, 301 521, 300 522
-                     L 300 120 Z"
+                  d="M 300 120 C 360 125, 410 145, 445 185 C 460 205, 470 230, 475 255 C 480 285, 480 315, 475 345 C 470 375, 460 405, 445 430 C 430 455, 410 475, 385 490 C 360 505, 330 515, 305 520 C 303 521, 301 521, 300 522 L 300 120 Z"
                   fill="rgba(0, 95, 215, 0.08)"
                   stroke="#005FD7"
                   strokeWidth="3"

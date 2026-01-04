@@ -3,8 +3,7 @@
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useAuth } from "@/context/AuthContext"
-import { FiMenu, FiX, FiLogOut, FiMessageSquare, FiUser, FiMessageCircle, FiSettings, FiBookOpen, FiPlay } from "react-icons/fi"
-import { FaTrophy } from "react-icons/fa"
+import { FiMenu, FiX, FiLogOut, FiUser, FiLayout, FiSettings } from "react-icons/fi"
 
 const Header = () => {
   const { user, logout } = useAuth()
@@ -20,10 +19,7 @@ const Header = () => {
   }, [])
 
   const navLinks = [
-    { href: "/bacheca", label: "Bacheca", icon: <FiMessageSquare /> },
-    { href: "/academy", label: "Academy", icon: <FiBookOpen /> },
-    { href: "/area-riservata/live", label: "Eventi Live", icon: <FiPlay /> },
-    { href: "/neurocredits", label: "NeuroCredits", icon: <FaTrophy /> },
+    { href: "/area-riservata/dashboard", label: "Dashboard", icon: <FiLayout /> },
     { href: "/area-riservata/profile", label: "Profilo", icon: <FiUser /> },
   ]
 
