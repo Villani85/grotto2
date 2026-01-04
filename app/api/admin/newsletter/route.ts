@@ -3,15 +3,22 @@ import { NewsletterRepository } from "@/lib/repositories/newsletter"
 import { isDemoMode, resendConfig, hasResendConfig } from "@/lib/env"
 import { Resend } from "resend"
 import { sendNewsletterCampaign } from "@/lib/newsletter-sender"
+import { requireAdmin } from "@/lib/auth-helpers"
 
 // Get all newsletter campaigns (admin only)
 export async function GET(request: NextRequest) {
   try {
-    // TODO: Add admin auth check here
+    await requireAdmin(request)
     const campaigns = await NewsletterRepository.getAll()
     return NextResponse.json(campaigns)
   } catch (error: any) {
     console.error("[API Admin Newsletter] Error fetching campaigns:", error)
+    if (error.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+    if (error.message === "Forbidden") {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    }
     return NextResponse.json({ error: error.message || "Internal server error" }, { status: 500 })
   }
 }
@@ -23,7 +30,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    // TODO: Add admin auth check here
+    await requireAdmin(request)
     const body = await request.json()
 
     const campaignId = await NewsletterRepository.create(body)
@@ -76,6 +83,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ id: campaignId })
   } catch (error: any) {
     console.error("[API Admin Newsletter] Error creating campaign:", error)
+    if (error.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+    if (error.message === "Forbidden") {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    }
     return NextResponse.json({ error: error.message || "Internal server error" }, { status: 500 })
   }
 }
