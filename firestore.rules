@@ -123,10 +123,9 @@ service cloud.firestore {
       allow read: if isAuthenticated() && 
                    resource.data.userId == request.auth.uid;
       
-      // Only server (via Admin SDK) can create transactions
-      // For now, allow authenticated users to create (will be restricted later)
-      allow create: if isAuthenticated() && 
-                     request.resource.data.userId == request.auth.uid;
+      // Only server (via Admin SDK) or Admins can create transactions
+      // Client-side creation is blocked to prevent fraud
+      allow create: if isAdmin();
       
       // Admins can read all transactions
       allow read: if isAdmin();
