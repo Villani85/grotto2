@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Search, UserCog, CheckCircle2, XCircle, Crown } from "lucide-react"
+import { getFirebaseIdToken } from "@/lib/api-helpers"
 import type { User } from "@/lib/types"
 
 export default function AdminUsersPage() {
@@ -47,13 +48,22 @@ export default function AdminUsersPage() {
       }
 
       // Fallback to API only if Firestore completely fails
-      const response = await fetch("/api/admin/users")
+      const token = await getFirebaseIdToken()
+      const headers: HeadersInit = { "Content-Type": "application/json" }
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`
+      }
+      
+      const response = await fetch("/api/admin/users", { headers })
       if (response.ok) {
         const data = await response.json()
         console.log("[Admin Users] API users loaded:", data.length)
         setUsers(data)
       } else {
         console.error("Error fetching users from API:", response.statusText)
+        if (response.status === 401 || response.status === 403) {
+          console.error("[Admin Users] Authentication failed - user may not be admin")
+        }
       }
     } catch (error) {
       console.error("Error fetching users:", error)
@@ -105,15 +115,28 @@ export default function AdminUsersPage() {
       }
 
       // Fallback to API
-      await fetch(`/api/admin/users/${userId}`, {
+      const token = await getFirebaseIdToken()
+      const headers: HeadersInit = { "Content-Type": "application/json" }
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`
+      }
+      
+      const response = await fetch(`/api/admin/users/${userId}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({
           subscriptionStatus: newStatus,
           isManualSubscription: true,
           subscriptionEnd: subscriptionEnd?.toISOString(),
         }),
       })
+      
+      if (!response.ok) {
+        if (response.status === 401 || response.status === 403) {
+          throw new Error("Non autorizzato. Verifica di essere un amministratore.")
+        }
+        throw new Error("Errore durante l'aggiornamento")
+      }
 
       fetchUsers()
     } catch (error) {
@@ -144,13 +167,26 @@ export default function AdminUsersPage() {
       }
 
       // Fallback to API
-      await fetch(`/api/admin/users/${userId}`, {
+      const token = await getFirebaseIdToken()
+      const headers: HeadersInit = { "Content-Type": "application/json" }
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`
+      }
+      
+      const response = await fetch(`/api/admin/users/${userId}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({
           isAdmin: !currentIsAdmin,
         }),
       })
+      
+      if (!response.ok) {
+        if (response.status === 401 || response.status === 403) {
+          throw new Error("Non autorizzato. Verifica di essere un amministratore.")
+        }
+        throw new Error("Errore durante l'aggiornamento")
+      }
 
       fetchUsers()
     } catch (error) {

@@ -22,7 +22,14 @@ export default function AdminNewsletterPage() {
 
   const fetchCampaigns = async () => {
     try {
-      const response = await fetch("/api/admin/newsletter")
+      const { getFirebaseIdToken } = await import("@/lib/api-helpers")
+      const token = await getFirebaseIdToken()
+      const headers: HeadersInit = { "Content-Type": "application/json" }
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`
+      }
+      
+      const response = await fetch("/api/admin/newsletter", { headers })
       const data = await response.json()
       setCampaigns(data)
       
@@ -30,7 +37,7 @@ export default function AdminNewsletterPage() {
       const stats: Record<string, { sent: number; failed: number; total: number }> = {}
       for (const campaign of data) {
         try {
-          const sendsResponse = await fetch(`/api/admin/newsletter/${campaign.id}/sends`)
+          const sendsResponse = await fetch(`/api/admin/newsletter/${campaign.id}/sends`, { headers })
           if (sendsResponse.ok) {
             const sendsData = await sendsResponse.json()
             stats[campaign.id] = {

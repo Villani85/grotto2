@@ -36,11 +36,25 @@ export default function NewCoursePage() {
     setIsLoading(true)
 
     try {
+      const { getFirebaseIdToken } = await import("@/lib/api-helpers")
+      const token = await getFirebaseIdToken()
+      const headers: HeadersInit = { "Content-Type": "application/json" }
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`
+      }
+      
       const res = await fetch("/api/admin/courses", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify(formData),
       })
+      
+      if (!res.ok) {
+        if (res.status === 401 || res.status === 403) {
+          throw new Error("Non autorizzato. Verifica di essere un amministratore.")
+        }
+        throw new Error("Errore durante la creazione del corso")
+      }
 
       const data = await res.json()
 

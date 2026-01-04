@@ -23,7 +23,14 @@ export default function AdminSettingsPage() {
 
   const fetchSettings = async () => {
     try {
-      const response = await fetch("/api/admin/settings")
+      const { getFirebaseIdToken } = await import("@/lib/api-helpers")
+      const token = await getFirebaseIdToken()
+      const headers: HeadersInit = { "Content-Type": "application/json" }
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`
+      }
+      
+      const response = await fetch("/api/admin/settings", { headers })
       const data = await response.json()
       setSettings(data)
     } catch (error) {
@@ -38,11 +45,25 @@ export default function AdminSettingsPage() {
 
     setIsSaving(true)
     try {
-      await fetch("/api/admin/settings", {
+      const { getFirebaseIdToken } = await import("@/lib/api-helpers")
+      const token = await getFirebaseIdToken()
+      const headers: HeadersInit = { "Content-Type": "application/json" }
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`
+      }
+      
+      const response = await fetch("/api/admin/settings", {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify(settings),
       })
+      
+      if (!response.ok) {
+        if (response.status === 401 || response.status === 403) {
+          throw new Error("Non autorizzato. Verifica di essere un amministratore.")
+        }
+        throw new Error("Errore durante il salvataggio")
+      }
 
       toast({
         title: "Impostazioni salvate",
