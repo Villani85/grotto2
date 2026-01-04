@@ -51,7 +51,8 @@ const Header = () => {
               <span className="text-white font-bold text-xl">BHA</span>
             </div>
             <div>
-              <h1 className="text-xl font-bold text-[#005FD7]">NeuroAgorà</h1>
+              <h1 className="text-xl font-black text-gradient">BRAIN HACKING ACADEMY</h1>
+              <p className="text-xs text-gray-400 font-medium">Hackera mente e comportamento umano</p>
             </div>
           </Link>
 

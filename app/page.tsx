@@ -589,8 +589,9 @@ export default function HomePage() {
               textShadow: "0 2px 10px rgba(0, 0, 0, 0.8)",
             }}
           >
-            Non è più fantascienza. Scopri le tecniche scientifiche per{" "}
-            <span className="text-[#005FD7] font-semibold animate-electric-pulse">trasformare</span> il tuo cervello.
+            La scelta è tua:{" "}
+            <span className="text-[#005FD7] font-semibold animate-electric-pulse">controlla la tua mente</span>
+            <span className="text-white">, oppure la tua mente controlla te</span>
           </p>
           <div
             className="flex flex-col sm:flex-row gap-6 justify-center items-center animate-scale-in"
