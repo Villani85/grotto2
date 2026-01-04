@@ -3,7 +3,7 @@ import { requireAuth } from "@/lib/auth-server"
 import { getAdminApp } from "@/lib/firebase-admin"
 import { isDemoMode } from "@/lib/env"
 import { getPeriodId } from "@/lib/neurocredits-rules"
-import { calculateLevel, getProgressToNextLevel, getLevelName } from "@/lib/neurocredits-levels"
+import { getLevelSummary } from "@/lib/neurocredits-levels.server"
 
 // GET /api/neurocredits/me - Statistiche personali NeuroCredits
 export async function GET(request: NextRequest) {
@@ -58,8 +58,7 @@ export async function GET(request: NextRequest) {
     const streakCurrent = userData?.streak_current || 0
     const streakBest = userData?.streak_best || 0
 
-    const currentLevel = calculateLevel(neuroCreditsTotal)
-    const levelProgress = getProgressToNextLevel(neuroCreditsTotal)
+    const levelSummary = await getLevelSummary(neuroCreditsTotal)
 
     return NextResponse.json({
       neuroCredits_total: neuroCreditsTotal,
@@ -71,9 +70,9 @@ export async function GET(request: NextRequest) {
       streak_current: streakCurrent,
       streak_best: streakBest,
       level: {
-        current: currentLevel,
-        name: getLevelName(currentLevel),
-        progress: levelProgress,
+        current: levelSummary.current,
+        name: levelSummary.name,
+        progress: levelSummary.progress,
       },
     })
   } catch (error: any) {

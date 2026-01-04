@@ -1,6 +1,6 @@
 import { getAdminApp } from "./firebase-admin"
 import { isDemoMode } from "./env"
-import { calculateLevel, getProgressToNextLevel, getLevelName, getCreditsForNextLevel } from "./neurocredits-levels"
+import { getLevelSummary } from "./neurocredits-levels.server"
 import { getPeriodId } from "./neurocredits-rules"
 
 export interface LevelInfo {
@@ -23,40 +23,17 @@ export interface ProfileStats {
 
 /**
  * Compute level info from total NeuroCredits
+ * Uses server-only adapter with cached config
  */
-export function computeLevel(neuroCreditsTotal: number): LevelInfo {
-  const levelId = calculateLevel(neuroCreditsTotal)
-  const nextLevelPoints = getCreditsForNextLevel(neuroCreditsTotal)
-  const progress = getProgressToNextLevel(neuroCreditsTotal)
-
-  // Find current level's min points
-  const LEVELS = [
-    { level: 1, creditsRequired: 0 },
-    { level: 2, creditsRequired: 100 },
-    { level: 3, creditsRequired: 250 },
-    { level: 4, creditsRequired: 500 },
-    { level: 5, creditsRequired: 1000 },
-    { level: 6, creditsRequired: 2000 },
-    { level: 7, creditsRequired: 3500 },
-    { level: 8, creditsRequired: 5000 },
-    { level: 9, creditsRequired: 7500 },
-    { level: 10, creditsRequired: 10000 },
-    { level: 11, creditsRequired: 15000 },
-    { level: 12, creditsRequired: 25000 },
-    { level: 13, creditsRequired: 40000 },
-    { level: 14, creditsRequired: 60000 },
-    { level: 15, creditsRequired: 100000 },
-  ]
-
-  const currentLevelData = LEVELS.find((l) => l.level === levelId)!
-  const pointsToNext = nextLevelPoints ? nextLevelPoints - neuroCreditsTotal : 0
+export async function computeLevel(neuroCreditsTotal: number): Promise<LevelInfo> {
+  const levelSummary = await getLevelSummary(neuroCreditsTotal)
 
   return {
-    levelId,
-    title: getLevelName(levelId),
-    minPoints: currentLevelData.creditsRequired,
-    nextLevelPoints,
-    pointsToNext: Math.max(0, pointsToNext),
+    levelId: levelSummary.current,
+    title: levelSummary.name,
+    minPoints: levelSummary.progress.current,
+    nextLevelPoints: levelSummary.nextLevelPoints,
+    pointsToNext: levelSummary.pointsToNext,
   }
 }
 
@@ -142,10 +119,11 @@ export async function getRank(
  */
 export async function getDerivedStats(uid: string): Promise<ProfileStats | null> {
   if (isDemoMode) {
+    const demoLevel = await computeLevel(100)
     return {
       neuroCredits_total: 100,
       neuroCredits_month_current: 50,
-      level: computeLevel(100),
+      level: demoLevel,
       rank: {
         all_time: 5,
         month_current: 3,
@@ -175,7 +153,7 @@ export async function getDerivedStats(uid: string): Promise<ProfileStats | null>
     const neuroCreditsMonthCurrent = userData?.neuroCredits_monthly?.[periodId] || 0
 
     // Compute level
-    const level = computeLevel(neuroCreditsTotal)
+    const level = await computeLevel(neuroCreditsTotal)
 
     // Get ranks
     const [rankAllTime, rankMonthCurrent] = await Promise.all([
