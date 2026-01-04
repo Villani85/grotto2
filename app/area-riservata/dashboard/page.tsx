@@ -5,6 +5,8 @@ import { useAuth } from "@/context/AuthContext"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { FiTrendingUp, FiTarget, FiAward, FiCalendar, FiMessageSquare, FiMessageCircle, FiPlay, FiClock, FiBookOpen } from "react-icons/fi"
+import { getFirebaseIdToken } from "@/lib/api-helpers"
+import { Skeleton } from "@/components/ui/skeleton"
 
 // Helper function to format numbers consistently (avoid hydration mismatch)
 const formatNumber = (num: number): string => {
@@ -20,6 +22,16 @@ interface DashboardStats {
   streakDays: number
 }
 
+interface LevelInfo {
+  current: number
+  name: string
+  progress: {
+    current: number
+    next: number
+    progress: number
+  }
+}
+
 interface LiveEvent {
   id: string
   title: string
@@ -33,38 +45,76 @@ interface LiveEvent {
 export default function DashboardPage() {
   const { user, isLoading } = useAuth()
   const router = useRouter()
-  // Calculate level from points (1000 points per level)
-  const calculateLevel = (points: number) => {
-    return Math.floor(points / 1000) + 1
-  }
-
-  const calculateNextLevelPoints = (points: number) => {
-    const currentLevel = calculateLevel(points)
-    return currentLevel * 1000 - points
-  }
+  const [levelInfo, setLevelInfo] = useState<LevelInfo | null>(null)
+  const [isLoadingLevel, setIsLoadingLevel] = useState(true)
+  const [levelError, setLevelError] = useState<string | null>(null)
 
   const [stats, setStats] = useState<DashboardStats>({
-    totalPoints: user?.pointsTotal || 0,
-    currentLevel: calculateLevel(user?.pointsTotal || 0),
-    nextLevelPoints: calculateNextLevelPoints(user?.pointsTotal || 0),
+    totalPoints: 0,
+    currentLevel: 1,
+    nextLevelPoints: 0,
     liveEventsAttended: 8,
     communityPosts: 24,
     streakDays: 14,
   })
 
-  // Update stats when user data changes
+  // Fetch level info from API
   useEffect(() => {
-    if (user) {
-      setStats({
-        totalPoints: user.pointsTotal || 0,
-        currentLevel: calculateLevel(user.pointsTotal || 0),
-        nextLevelPoints: calculateNextLevelPoints(user.pointsTotal || 0),
-        liveEventsAttended: 8, // TODO: Load from Firestore
-        communityPosts: 24, // TODO: Load from Firestore
-        streakDays: 14, // TODO: Load from Firestore
-      })
+    const fetchLevelInfo = async () => {
+      if (!user?.uid) {
+        setIsLoadingLevel(false)
+        return
+      }
+
+      try {
+        setIsLoadingLevel(true)
+        setLevelError(null)
+
+        const token = await getFirebaseIdToken()
+        if (!token) {
+          setLevelError("Autenticazione richiesta")
+          setIsLoadingLevel(false)
+          return
+        }
+
+        const response = await fetch("/api/neurocredits/me", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        })
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`)
+        }
+
+        const data = await response.json()
+        
+        // Set level info from API
+        if (data.level) {
+          setLevelInfo({
+            current: data.level.current,
+            name: data.level.name,
+            progress: data.level.progress,
+          })
+          
+          // Update stats with API data
+          setStats((prev) => ({
+            ...prev,
+            totalPoints: data.neuroCredits_total || 0,
+            currentLevel: data.level.current,
+            nextLevelPoints: data.level.progress.next - data.level.progress.current,
+          }))
+        }
+      } catch (error) {
+        console.error("[Dashboard] Error fetching level info:", error)
+        setLevelError("Errore nel caricamento del livello")
+      } finally {
+        setIsLoadingLevel(false)
+      }
     }
-  }, [user])
+
+    fetchLevelInfo()
+  }, [user?.uid])
   const [upcomingEvents, setUpcomingEvents] = useState<LiveEvent[]>([
     {
       id: "1",
@@ -107,7 +157,7 @@ export default function DashboardPage() {
     return null
   }
 
-  const progressPercentage = (stats.totalPoints % 1000) / 10
+  const progressPercentage = levelInfo?.progress.progress || 0
 
   const quickActions = [
     { icon: <FiPlay />, label: "Guarda Live", href: "/area-riservata/live", color: "bg-[#005FD7]" },
@@ -137,8 +187,27 @@ export default function DashboardPage() {
             </div>
             <div className="h-12 w-px bg-gray-800"></div>
             <div className="text-center">
-              <div className="text-2xl font-bold">Liv. {stats.currentLevel}</div>
-              <div className="text-sm text-gray-400">Il tuo livello</div>
+              {isLoadingLevel ? (
+                <>
+                  <Skeleton className="h-8 w-16 mx-auto mb-1" />
+                  <Skeleton className="h-4 w-24 mx-auto" />
+                </>
+              ) : levelError ? (
+                <>
+                  <div className="text-2xl font-bold text-gray-500">-</div>
+                  <div className="text-sm text-gray-500">Errore</div>
+                </>
+              ) : levelInfo ? (
+                <>
+                  <div className="text-2xl font-bold">Liv. {levelInfo.current}</div>
+                  <div className="text-sm text-gray-400">{levelInfo.name}</div>
+                </>
+              ) : (
+                <>
+                  <div className="text-2xl font-bold">Liv. 1</div>
+                  <div className="text-sm text-gray-400">-</div>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -175,14 +244,26 @@ export default function DashboardPage() {
             <div>
               <div className="flex justify-between text-sm mb-1">
                 <span className="text-gray-400">Punti totali</span>
-                <span className="font-semibold">{formatNumber(stats.totalPoints)}</span>
+                {isLoadingLevel ? (
+                  <Skeleton className="h-4 w-20" />
+                ) : (
+                  <span className="font-semibold">{formatNumber(stats.totalPoints)}</span>
+                )}
               </div>
-              <div className="h-2 bg-gray-800 rounded-full overflow-hidden">
-                <div className="h-full bg-[#005FD7] rounded-full" style={{ width: `${progressPercentage}%` }} />
-              </div>
-              <div className="text-xs text-gray-500 mt-1">
-                {1000 - (stats.totalPoints % 1000)} punti per il livello {stats.currentLevel + 1}
-              </div>
+              {isLoadingLevel ? (
+                <Skeleton className="h-2 w-full rounded-full" />
+              ) : (
+                <>
+                  <div className="h-2 bg-gray-800 rounded-full overflow-hidden">
+                    <div className="h-full bg-[#005FD7] rounded-full" style={{ width: `${Math.min(100, Math.max(0, progressPercentage))}%` }} />
+                  </div>
+                  {levelInfo && (
+                    <div className="text-xs text-gray-500 mt-1">
+                      {formatNumber(levelInfo.progress.next - levelInfo.progress.current)} punti per il livello {levelInfo.current + 1}
+                    </div>
+                  )}
+                </>
+              )}
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="text-center p-3 bg-gray-800/50 rounded-lg">
