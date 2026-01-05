@@ -90,4 +90,12 @@ export default defineConfig([
       "react-hooks/exhaustive-deps": "error",
     },
   },
+
+  // 4) REACT-HOOKS/EXHAUSTIVE-DEPS (SOLO LIVE PUBBLICA)
+  {
+    files: ["app/live/**/*.{ts,tsx}"],
+    rules: {
+      "react-hooks/exhaustive-deps": "error",
+    },
+  },
 ]);

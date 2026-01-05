@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent } from "@/components/ui/card"
 
@@ -14,11 +14,7 @@ export default function LivePage() {
   const [isLoading, setIsLoading] = useState(true)
   const [activeEvent, setActiveEvent] = useState<ActiveEvent | null>(null)
 
-  useEffect(() => {
-    fetchActiveEvent()
-  }, [])
-
-  const fetchActiveEvent = async () => {
+  const fetchActiveEvent = useCallback(async () => {
     try {
       const res = await fetch("/api/live-events/active", { cache: "no-store" })
       const data = await res.json()
@@ -37,7 +33,11 @@ export default function LivePage() {
       console.error("Error fetching active event:", error)
       setIsLoading(false)
     }
-  }
+  }, [router])
+
+  useEffect(() => {
+    fetchActiveEvent()
+  }, [fetchActiveEvent])
 
   if (isLoading) {
     return (

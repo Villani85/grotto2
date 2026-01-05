@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import { useParams } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -40,9 +40,96 @@ export default function LiveEventPage() {
     playerError: string | null
   } | null>(null)
 
+  // Probe manifest URL (dev only) - uses API proxy to avoid CORS
+  const probeManifest = useCallback(async (url: string) => {
+    if (process.env.NODE_ENV !== "development") return
+
+    setDebugInfo({
+      playbackUrl: url,
+      manifestStatus: null,
+      manifestError: null,
+      playerError: null,
+    })
+
+    try {
+      // Use API proxy to check manifest (avoids CORS)
+      const res = await fetch(`/api/live-events/probe-manifest?url=${encodeURIComponent(url)}`, {
+        cache: "no-store",
+      })
+
+      const data = await res.json()
+      if (data.success) {
+        setDebugInfo((prev) => ({
+          ...prev!,
+          manifestStatus: data.status,
+        }))
+      } else {
+        setDebugInfo((prev) => ({
+          ...prev!,
+          manifestError: data.error || `HTTP ${data.status}`,
+        }))
+      }
+    } catch (err: any) {
+      setDebugInfo((prev) => ({
+        ...prev!,
+        manifestError: err.message || "Errore probe",
+      }))
+    }
+  }, [])
+
+  const fetchEvent = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/live-events/${slug}`, { cache: "no-store" })
+      
+      // Robust JSON parsing
+      const text = await res.text()
+      let data: any = null
+      if (text && text.trim() !== "") {
+        try {
+          data = JSON.parse(text)
+        } catch (parseError) {
+          console.error("[LiveEventPage] JSON parse error:", parseError)
+          setError("Risposta non valida dal server")
+          setIsLoading(false)
+          return
+        }
+      } else {
+        setError("Risposta vuota dal server")
+        setIsLoading(false)
+        return
+      }
+
+      if (!res.ok || !data.success) {
+        setError(data.error || "Evento non trovato")
+        setIsLoading(false)
+        return
+      }
+
+      if (data.event) {
+        setEvent(data.event)
+        // Probe manifest in dev mode (use appropriate URL)
+        if (process.env.NODE_ENV === "development") {
+          const urlToProbe = data.event.status === "live" 
+            ? data.event.playbackUrl 
+            : data.event.recordingUrl || data.event.playbackUrl
+          if (urlToProbe) {
+            probeManifest(urlToProbe)
+          }
+        }
+      } else {
+        setError("Evento non trovato")
+      }
+    } catch (err: any) {
+      console.error("Error fetching event:", err)
+      setError(err.message || "Errore nel caricamento dell'evento")
+    } finally {
+      setIsLoading(false)
+    }
+  }, [slug, probeManifest])
+
   useEffect(() => {
     fetchEvent()
-  }, [slug])
+  }, [fetchEvent])
 
   // Polling for recording when event is ended but recordingUrl not available
   useEffect(() => {
@@ -106,94 +193,7 @@ export default function LiveEventPage() {
         pollingIntervalRef.current = null
       }
     }
-  }, [event?.status, event?.recordingUrl, isPollingRecording, slug])
-
-  // Probe manifest URL (dev only) - uses API proxy to avoid CORS
-  const probeManifest = async (url: string) => {
-    if (process.env.NODE_ENV !== "development") return
-
-    setDebugInfo({
-      playbackUrl: url,
-      manifestStatus: null,
-      manifestError: null,
-      playerError: null,
-    })
-
-    try {
-      // Use API proxy to check manifest (avoids CORS)
-      const res = await fetch(`/api/live-events/probe-manifest?url=${encodeURIComponent(url)}`, {
-        cache: "no-store",
-      })
-
-      const data = await res.json()
-      if (data.success) {
-        setDebugInfo((prev) => ({
-          ...prev!,
-          manifestStatus: data.status,
-        }))
-      } else {
-        setDebugInfo((prev) => ({
-          ...prev!,
-          manifestError: data.error || `HTTP ${data.status}`,
-        }))
-      }
-    } catch (err: any) {
-      setDebugInfo((prev) => ({
-        ...prev!,
-        manifestError: err.message || "Errore probe",
-      }))
-    }
-  }
-
-  const fetchEvent = async () => {
-    try {
-      const res = await fetch(`/api/live-events/${slug}`, { cache: "no-store" })
-      
-      // Robust JSON parsing
-      const text = await res.text()
-      let data: any = null
-      if (text && text.trim() !== "") {
-        try {
-          data = JSON.parse(text)
-        } catch (parseError) {
-          console.error("[LiveEventPage] JSON parse error:", parseError)
-          setError("Risposta non valida dal server")
-          setIsLoading(false)
-          return
-        }
-      } else {
-        setError("Risposta vuota dal server")
-        setIsLoading(false)
-        return
-      }
-
-      if (!res.ok || !data.success) {
-        setError(data.error || "Evento non trovato")
-        setIsLoading(false)
-        return
-      }
-
-      if (data.event) {
-        setEvent(data.event)
-        // Probe manifest in dev mode (use appropriate URL)
-        if (process.env.NODE_ENV === "development") {
-          const urlToProbe = data.event.status === "live" 
-            ? data.event.playbackUrl 
-            : data.event.recordingUrl || data.event.playbackUrl
-          if (urlToProbe) {
-            probeManifest(urlToProbe)
-          }
-        }
-      } else {
-        setError("Evento non trovato")
-      }
-    } catch (err: any) {
-      console.error("Error fetching event:", err)
-      setError(err.message || "Errore nel caricamento dell'evento")
-    } finally {
-      setIsLoading(false)
-    }
-  }
+  }, [event?.status, event?.recordingUrl, isPollingRecording, slug, fetchEvent])
 
   if (isLoading) {
     return (
