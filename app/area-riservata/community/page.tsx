@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/context/AuthContext"
 import { SubscriptionRequired } from "@/components/SubscriptionRequired"
@@ -74,14 +74,7 @@ export default function CommunityPage() {
     }
   }, [user, isLoading, router])
 
-  useEffect(() => {
-    if (user) {
-      loadPosts()
-      loadSettings()
-    }
-  }, [user])
-
-  const loadSettings = async () => {
+  const loadSettings = useCallback(async () => {
     try {
       const res = await fetch("/api/admin/settings/public")
       if (res.ok) {
@@ -91,9 +84,9 @@ export default function CommunityPage() {
     } catch (error) {
       console.error("Error loading settings:", error)
     }
-  }
+  }, [])
 
-  const loadPosts = async () => {
+  const loadPosts = useCallback(async () => {
     try {
       setLoading(true)
       
@@ -159,7 +152,14 @@ export default function CommunityPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [user])
+
+  useEffect(() => {
+    if (user) {
+      loadPosts()
+      loadSettings()
+    }
+  }, [user, loadPosts, loadSettings])
 
   const handleCreatePost = async () => {
     if (!newPostTitle.trim() || !newPostContent.trim() || isCreating || !user) return

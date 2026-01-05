@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/context/AuthContext"
 import { Card, CardContent } from "@/components/ui/card"
@@ -29,34 +29,7 @@ export default function MessagesPage() {
     }
   }, [user, isLoading, router])
 
-  useEffect(() => {
-    if (user) {
-      loadConversations()
-      loadAllUsers()
-    }
-  }, [user])
-
-  useEffect(() => {
-    if (selectedConversation) {
-      loadMessages()
-    }
-  }, [selectedConversation])
-
-  // Check URL for conversation parameter
-  useEffect(() => {
-    if (typeof window !== "undefined" && user) {
-      const params = new URLSearchParams(window.location.search)
-      const conversationId = params.get("conversation")
-      if (conversationId && conversations.length > 0) {
-        const conv = conversations.find((c) => c.id === conversationId)
-        if (conv) {
-          setSelectedConversation(conv)
-        }
-      }
-    }
-  }, [conversations, user])
-
-  const loadConversations = async () => {
+  const loadConversations = useCallback(async () => {
     try {
       setLoading(true)
       const res = await fetch(`/api/conversations?userId=${user?.uid}`)
@@ -69,9 +42,9 @@ export default function MessagesPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [user])
 
-  const loadMessages = async () => {
+  const loadMessages = useCallback(async () => {
     if (!selectedConversation) return
 
     try {
@@ -83,38 +56,9 @@ export default function MessagesPage() {
     } catch (error) {
       console.error("Error loading messages:", error)
     }
-  }
+  }, [selectedConversation])
 
-  const handleSendMessage = async () => {
-    if (!newMessage.trim() || !selectedConversation || !user) return
-
-    const otherUserId = selectedConversation.participantIds.find((id) => id !== user.uid)
-    if (!otherUserId) return
-
-    try {
-      const res = await fetch("/api/messages", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          conversationId: selectedConversation.id,
-          fromUserId: user.uid,
-          toUserId: otherUserId,
-          content: newMessage,
-        }),
-      })
-
-      if (res.ok) {
-        const data = await res.json()
-        setMessages([...messages, data.data])
-        setNewMessage("")
-        loadConversations() // Refresh to update last message
-      }
-    } catch (error) {
-      console.error("Error sending message:", error)
-    }
-  }
-
-  const loadAllUsers = async () => {
+  const loadAllUsers = useCallback(async () => {
     try {
       console.log("[Messages] 📥 Loading all users...")
       
@@ -165,6 +109,62 @@ export default function MessagesPage() {
     } catch (error) {
       console.error("[Messages] ❌ Error loading users:", error)
       setAllUsers(mockUsers)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (user) {
+      loadConversations()
+      loadAllUsers()
+    }
+  }, [user, loadConversations, loadAllUsers])
+
+  useEffect(() => {
+    if (selectedConversation) {
+      loadMessages()
+    }
+  }, [selectedConversation, loadMessages])
+
+  // Check URL for conversation parameter
+  useEffect(() => {
+    if (typeof window !== "undefined" && user) {
+      const params = new URLSearchParams(window.location.search)
+      const conversationId = params.get("conversation")
+      if (conversationId && conversations.length > 0) {
+        const conv = conversations.find((c) => c.id === conversationId)
+        if (conv) {
+          setSelectedConversation(conv)
+        }
+      }
+    }
+  }, [conversations, user])
+
+  const handleSendMessage = async () => {
+    if (!newMessage.trim() || !selectedConversation || !user) return
+
+    const otherUserId = selectedConversation.participantIds.find((id) => id !== user.uid)
+    if (!otherUserId) return
+
+    try {
+      const res = await fetch("/api/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          conversationId: selectedConversation.id,
+          fromUserId: user.uid,
+          toUserId: otherUserId,
+          content: newMessage,
+        }),
+      })
+
+      if (res.ok) {
+        const data = await res.json()
+        setMessages([...messages, data.data])
+        setNewMessage("")
+        loadConversations() // Refresh to update last message
+      }
+    } catch (error) {
+      console.error("Error sending message:", error)
     }
   }
 

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -35,11 +35,7 @@ export default function LiveEventReplayPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    fetchEvent()
-  }, [eventId])
-
-  const fetchEvent = async () => {
+  const fetchEvent = useCallback(async () => {
     try {
       // Try admin API if user is admin
       if (user?.isAdmin) {
@@ -92,7 +88,11 @@ export default function LiveEventReplayPage() {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [eventId, user])
+
+  useEffect(() => {
+    fetchEvent()
+  }, [fetchEvent])
 
   const getReplayUrl = () => {
     if (event?.recordingUrl) {

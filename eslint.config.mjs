@@ -82,4 +82,12 @@ export default defineConfig([
       }],
     },
   },
+
+  // 3) REACT-HOOKS/EXHAUSTIVE-DEPS (SOLO AREA-RISERVATA)
+  {
+    files: ["app/area-riservata/**/*.{ts,tsx}"],
+    rules: {
+      "react-hooks/exhaustive-deps": "error",
+    },
+  },
 ]);

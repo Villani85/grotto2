@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import Link from "next/link"
 import { FiPlay, FiCalendar, FiClock, FiUser, FiFilter, FiSearch } from "react-icons/fi"
 import { useAuth } from "@/context/AuthContext"
@@ -30,11 +30,7 @@ export default function LiveEventsPage() {
   const [events, setEvents] = useState<LiveEvent[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
-  useEffect(() => {
-    fetchEvents()
-  }, [filter])
-
-  const fetchEvents = async () => {
+  const fetchEvents = useCallback(async () => {
     try {
       setIsLoading(true)
       const statusParam = filter !== "all" ? filter : null
@@ -56,7 +52,11 @@ export default function LiveEventsPage() {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [filter])
+
+  useEffect(() => {
+    fetchEvents()
+  }, [fetchEvents])
 
   const filteredEvents = events.filter((event) => {
     if (
