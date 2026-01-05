@@ -7,9 +7,15 @@ import importPlugin from "eslint-plugin-import"
 import tseslint from "typescript-eslint"
 
 export default config(
-  ...tseslint.configs.recommended,
+  ...tseslint.configs.recommendedTypeChecked,
   {
     files: ["**/*.{js,jsx,ts,tsx}"],
+    languageOptions: {
+      parserOptions: {
+        project: ["./tsconfig.json"],
+        tsconfigRootDir: import.meta.dirname,
+      },
+    },
     plugins: {
       "@next/next": nextPlugin,
       react: reactPlugin,
