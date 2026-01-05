@@ -83,7 +83,7 @@ function mapS3Error(err: any): {
 // GET /api/admin/ivs/recordings/verify - Verifica configurazione AWS S3
 export async function GET(request: NextRequest) {
   try {
-    const admin = await requireAdmin(request)
+    const _admin = await requireAdmin(request)
 
     if (isDemoMode) {
       return NextResponse.json({
@@ -188,7 +188,7 @@ export async function GET(request: NextRequest) {
       }
 
       // Step 2: ListObjectsV2 (check prefix and list objects)
-      let listOk = false
+      let _listOk = false
       let contents: any[] = []
       try {
         const listCommand = new ListObjectsV2Command({
@@ -198,7 +198,7 @@ export async function GET(request: NextRequest) {
         })
         const listResponse = await s3Client.send(listCommand)
         contents = listResponse.Contents || []
-        listOk = true
+        _listOk = true
       } catch (listError: any) {
         const mappedError = mapS3Error(listError)
         return NextResponse.json(

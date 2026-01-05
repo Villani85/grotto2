@@ -54,7 +54,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
 // Update user profile
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ uid: string }> }) {
-  const { uid } = await params
+  const { uid: _uid } = await params
 
   return NextResponse.json({ error: "Demo mode - Updates disabled" }, { status: 403 })
 }

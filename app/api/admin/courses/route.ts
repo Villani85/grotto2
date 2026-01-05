@@ -7,7 +7,7 @@ import { CategoriesRepository } from "@/lib/repositories/academy/categories"
 // GET /api/admin/courses - Lista tutti i corsi (admin)
 export async function GET(request: NextRequest) {
   try {
-    const admin = await requireAdmin(request)
+    const _admin = await requireAdmin(request)
     const courses = await CoursesRepository.getAll({ published: undefined })
     return NextResponse.json({ courses })
   } catch (error: any) {
@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
     let body: any
     try {
       body = await request.json()
-    } catch (parseError: any) {
+    } catch (_parseError: any) {
       return NextResponse.json(
         { success: false, error: "Invalid JSON body" },
         { status: 400 }

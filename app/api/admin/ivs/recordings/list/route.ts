@@ -7,7 +7,7 @@ export const runtime = "nodejs"
 // GET /api/admin/ivs/recordings/list - Lista registrazioni IVS da S3
 export async function GET(request: NextRequest) {
   try {
-    const admin = await requireAdmin(request)
+    const _admin = await requireAdmin(request)
 
     if (isDemoMode) {
       return NextResponse.json({
@@ -127,7 +127,7 @@ export async function GET(request: NextRequest) {
               hasMediaHls = (mediaResponse.Contents || []).some(
                 (obj) => obj.Key?.endsWith(".m3u8") || false
               )
-            } catch (e) {
+            } catch (_e) {
               // Ignore errors checking for media
             }
 

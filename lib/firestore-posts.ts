@@ -279,7 +279,7 @@ export async function getPostsFromFirestore(limit = 50): Promise<Post[]> {
       if (value && typeof value.toDate === "function") {
         try {
           return value.toDate()
-        } catch (e) {
+        } catch (_e) {
           return new Date()
         }
       }

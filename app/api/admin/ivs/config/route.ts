@@ -4,7 +4,7 @@ import { requireAdmin } from "@/lib/auth-helpers"
 // GET /api/admin/ivs/config - Restituisce config IVS (protetto, admin only)
 export async function GET(request: NextRequest) {
   try {
-    const admin = await requireAdmin(request)
+    const _admin = await requireAdmin(request)
 
     const ingestEndpoint = process.env.IVS_INGEST_ENDPOINT
     const streamKey = process.env.IVS_STREAM_KEY

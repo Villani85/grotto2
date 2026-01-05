@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
         const usersRef = db.collection("users")
         usersSnapshot = await usersRef.limit(limit).get()
       }
-    } catch (error: any) {
+    } catch (_error: any) {
       // If users_public doesn't exist, use users collection
       const usersRef = db.collection("users")
       usersSnapshot = await usersRef.limit(limit).get()

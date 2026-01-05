@@ -3,7 +3,7 @@ import { LiveEventsRepository } from "@/lib/repositories/live-events"
 import { isDemoMode } from "@/lib/env"
 
 // GET /api/live-events/active - Get active published event (public)
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
     if (isDemoMode) {
       return NextResponse.json({

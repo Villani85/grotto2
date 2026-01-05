@@ -1,7 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { isDemoMode } from "@/lib/env"
 import { getAdminStorage } from "@/lib/firebase-admin"
-import { requireAdmin } from "@/lib/auth-helpers"
 
 // Get signed URL for video (protected content - subscribers only)
 export async function GET(request: NextRequest) {

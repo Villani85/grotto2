@@ -111,7 +111,7 @@ export class CoursesRepository {
         return []
       }
 
-      const { collection, doc, getDocs, query, where, orderBy } = await import("firebase/firestore")
+      const { collection, getDocs, query, where, orderBy } = await import("firebase/firestore")
       const lessonsRef = collection(db, "courses", courseId, "lessons")
       
       // Build query: filter by published if needed, then order by order

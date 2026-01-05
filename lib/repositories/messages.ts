@@ -56,7 +56,7 @@ export class MessagesRepository {
     return newMessage
   }
 
-  static async markAsRead(messageId: string, userId: string): Promise<boolean> {
+  static async markAsRead(messageId: string, _userId: string): Promise<boolean> {
     console.log("[MessagesRepository] Mock mode - message marked as read:", messageId)
     return true
   }

@@ -2,7 +2,7 @@ import { type NextRequest, NextResponse } from "next/server"
 import { CategoriesRepository } from "@/lib/repositories/academy/categories"
 
 // GET /api/categories - Lista categorie attive
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
     const categories = await CategoriesRepository.getAll()
     return NextResponse.json({ categories })

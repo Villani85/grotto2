@@ -13,7 +13,7 @@ export async function POST(
 
   try {
     // Autenticazione e autorizzazione admin
-    const user = await requireAdmin(request)
+    const _user = await requireAdmin(request)
 
     const body = await request.json()
     const { contentType = "video/mp4" } = body

@@ -5,7 +5,7 @@ import { isDemoMode } from "@/lib/env"
 
 export async function POST(request: NextRequest) {
   try {
-    const admin = await requireAdmin(request)
+    const _admin = await requireAdmin(request)
 
     if (isDemoMode) {
       return NextResponse.json({ success: true, created: false, message: "Demo mode" })

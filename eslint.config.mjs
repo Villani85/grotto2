@@ -74,6 +74,12 @@ export default defineConfig([
     },
     rules: {
       "@typescript-eslint/no-floating-promises": ["error", { ignoreVoid: true }],
+      "@typescript-eslint/no-unused-vars": ["error", {
+        "argsIgnorePattern": "^_",
+        "varsIgnorePattern": "^_",
+        "caughtErrorsIgnorePattern": "^_",
+        "ignoreRestSiblings": true
+      }],
     },
   },
 ]);

@@ -10,7 +10,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const admin = await requireAdmin(request)
+    const _admin = await requireAdmin(request)
     const { id } = await params
 
     // Verify course exists

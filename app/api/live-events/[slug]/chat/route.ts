@@ -103,7 +103,7 @@ export async function POST(
     let body: any
     try {
       body = await request.json()
-    } catch (parseError) {
+    } catch (_parseError) {
       return NextResponse.json(
         { success: false, error: "Invalid JSON body", errorCode: "VALIDATION_ERROR" },
         { status: 400 }

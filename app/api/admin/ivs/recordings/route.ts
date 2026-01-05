@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
     let body: any
     try {
       body = await request.json()
-    } catch (parseError: any) {
+    } catch (_parseError: any) {
       return NextResponse.json(
         { success: false, error: "Invalid JSON body" },
         { status: 400 }
@@ -210,7 +210,7 @@ export async function POST(request: NextRequest) {
           .orderBy("startedAt", "desc")
           .limit(1)
           .get()
-      } catch (queryError: any) {
+      } catch (_queryError: any) {
         // If query fails (e.g., missing index), try without orderBy
         try {
           recordingsSnapshot = await db

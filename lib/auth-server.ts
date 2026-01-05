@@ -14,7 +14,7 @@ export async function verifyIdToken(request: NextRequest): Promise<{ uid: string
     // In demo mode, check for a demo token or skip auth
     const authHeader = request.headers.get("authorization")
     if (authHeader?.startsWith("Bearer ")) {
-      const token = authHeader.substring(7)
+      const _token = authHeader.substring(7)
       // For demo mode, accept any token or return mock user
       return { uid: "demo-user", email: "demo@example.com" }
     }

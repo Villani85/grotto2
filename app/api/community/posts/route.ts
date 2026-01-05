@@ -4,7 +4,7 @@ import { AdminSettingsRepository } from "@/lib/repositories/admin-settings"
 import { isDemoMode } from "@/lib/env"
 
 // GET /api/community/posts - Lista post community con enforcement di communityVisibility
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
     // Get admin settings to check community visibility
     const settings = await AdminSettingsRepository.get()

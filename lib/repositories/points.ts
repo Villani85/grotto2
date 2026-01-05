@@ -22,9 +22,9 @@ export class PointsRepository {
   }
 
   static async checkIdempotency(
-    userId: string,
-    type: PointsTransaction["type"],
-    referenceId?: string
+    _userId: string,
+    _type: PointsTransaction["type"],
+    _referenceId?: string
   ): Promise<boolean> {
     // In mock mode, we allow duplicates for simplicity
     // In production, this would check Firestore for existing transactions

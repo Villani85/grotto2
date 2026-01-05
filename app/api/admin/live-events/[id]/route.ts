@@ -1,9 +1,8 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { requireAdmin } from "@/lib/auth-helpers"
-import { LiveEventsRepository, type LiveEventUpdateInput } from "@/lib/repositories/live-events"
+import { LiveEventsRepository } from "@/lib/repositories/live-events"
 import { z } from "zod"
 import { isDemoMode } from "@/lib/env"
-import { getAdminApp } from "@/lib/firebase-admin"
 
 const updateEventSchema = z.object({
   title: z.string().min(1).max(200).optional(),
@@ -79,7 +78,7 @@ export async function PATCH(
     let body: any
     try {
       body = await request.json()
-    } catch (parseError) {
+    } catch (_parseError) {
       return NextResponse.json(
         { success: false, error: "Invalid JSON body", errorCode: "VALIDATION_ERROR" },
         { status: 400 }

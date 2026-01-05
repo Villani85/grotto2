@@ -10,7 +10,7 @@ export async function PUT(
   { params }: { params: Promise<{ id: string; moduleId: string }> }
 ) {
   try {
-    const admin = await requireAdmin(request)
+    const _admin = await requireAdmin(request)
     const { id, moduleId } = await params
 
     // Verify course exists
@@ -46,7 +46,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string; moduleId: string }> }
 ) {
   try {
-    const admin = await requireAdmin(request)
+    const _admin = await requireAdmin(request)
 
     const { id, moduleId } = await params
     await ModulesRepository.delete(id, moduleId)

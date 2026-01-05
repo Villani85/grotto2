@@ -1,5 +1,4 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { PostsRepository } from "@/lib/repositories/posts"
 import { cronConfig } from "@/lib/env"
 
 // POST /api/cron/publish-scheduled - Pubblica post programmati

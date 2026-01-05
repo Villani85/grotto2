@@ -119,7 +119,7 @@ export async function createUserInFirestore(userData: Omit<User, "createdAt" | "
         if (value && typeof value.toDate === "function") {
           try {
             return value.toDate()
-          } catch (e) {
+          } catch (_e) {
             return undefined
           }
         }

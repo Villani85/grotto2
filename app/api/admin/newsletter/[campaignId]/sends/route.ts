@@ -1,6 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { NewsletterSendsRepository } from "@/lib/repositories/newsletter-sends"
-import { isDemoMode } from "@/lib/env"
 
 // Get all sends for a specific campaign
 export async function GET(

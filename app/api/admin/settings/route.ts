@@ -4,7 +4,7 @@ import { isDemoMode } from "@/lib/env"
 import { requireAdmin } from "@/lib/auth-helpers"
 
 // Get admin settings
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
     // Anyone can read public settings, but maybe we want to restrict full settings to admin?
     // For now assuming settings are public or contain only safe public config.

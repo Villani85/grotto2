@@ -1,6 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { PointsRepository } from "@/lib/repositories/points"
-import { isDemoMode } from "@/lib/env"
 import type { PointsTransaction } from "@/lib/types"
 
 // POST /api/points - Event Processor XP

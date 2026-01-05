@@ -1,6 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { CoursesRepository } from "@/lib/repositories/academy/courses"
-import { isDemoMode } from "@/lib/env"
 
 // GET /api/courses - Catalogo corsi (solo published per utenti normali)
 export async function GET(request: NextRequest) {
