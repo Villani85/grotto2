@@ -9,7 +9,7 @@ import tseslint from "typescript-eslint"
 export default config(
   ...tseslint.configs.recommendedTypeChecked,
   {
-    files: ["**/*.{js,jsx,ts,tsx}"],
+    files: ["**/*.{ts,tsx}"],
     languageOptions: {
       parserOptions: {
         project: ["./tsconfig.json"],
@@ -39,6 +39,14 @@ export default config(
     },
   },
   {
-    ignores: [".next/**", "out/**", "build/**", "next-env.d.ts", "node_modules/**"],
+    ignores: [
+      ".next/**",
+      "out/**",
+      "build/**",
+      "next-env.d.ts",
+      "node_modules/**",
+      "eslint.config.mjs",
+      "*.config.{js,mjs,ts}",
+    ],
   }
 )
