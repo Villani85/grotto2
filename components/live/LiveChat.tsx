@@ -58,7 +58,9 @@ export function LiveChat({ eventSlug, enabled }: LiveChatProps) {
       }
     }
 
-    fetchMessages()
+    void fetchMessages().catch((err) => {
+      console.error("[LiveChat] Error in fetchMessages:", err)
+    })
 
     // Try Firestore realtime first (if available client-side)
     try {
@@ -123,7 +125,9 @@ export function LiveChat({ eventSlug, enabled }: LiveChatProps) {
     // Polling fallback
     const setupPolling = () => {
       pollingIntervalRef.current = setInterval(() => {
-        fetchMessages()
+        void fetchMessages().catch((err) => {
+          console.error("[LiveChat] Error in polling fetchMessages:", err)
+        })
       }, 5000) // Poll every 5 seconds
     }
 
@@ -231,7 +235,9 @@ export function LiveChat({ eventSlug, enabled }: LiveChatProps) {
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.shiftKey) {
                   e.preventDefault()
-                  handleSend()
+                  void handleSend().catch((err) => {
+                    console.error("[LiveChat] Error in handleSend:", err)
+                  })
                 }
               }}
               placeholder="Scrivi un messaggio..."

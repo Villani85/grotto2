@@ -98,4 +98,22 @@ export default defineConfig([
       "react-hooks/exhaustive-deps": "error",
     },
   },
+
+  // 5) NO-FLOATING-PROMISES (SOLO COMPONENTS/LIVE)
+  {
+    files: ["components/live/**/*.{ts,tsx}"],
+    languageOptions: {
+      parser: tsParser,
+      parserOptions: {
+        project: ["./tsconfig.json"],
+        tsconfigRootDir: __dirname,
+      },
+    },
+    plugins: {
+      "@typescript-eslint": tsPlugin,
+    },
+    rules: {
+      "@typescript-eslint/no-floating-promises": ["error", { ignoreVoid: true }],
+    },
+  },
 ]);
