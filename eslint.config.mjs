@@ -4,19 +4,12 @@ import reactPlugin from "eslint-plugin-react"
 import reactHooksPlugin from "eslint-plugin-react-hooks"
 import jsxA11yPlugin from "eslint-plugin-jsx-a11y"
 import importPlugin from "eslint-plugin-import"
+import tseslint from "typescript-eslint"
 
 export default config(
+  ...tseslint.configs.recommended,
   {
     files: ["**/*.{js,jsx,ts,tsx}"],
-    languageOptions: {
-      parserOptions: {
-        ecmaVersion: "latest",
-        sourceType: "module",
-        ecmaFeatures: {
-          jsx: true,
-        },
-      },
-    },
     plugins: {
       "@next/next": nextPlugin,
       react: reactPlugin,
