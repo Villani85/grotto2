@@ -1,26 +1,45 @@
-import { FlatCompat } from "@eslint/eslintrc"
-import { dirname } from "path"
-import { fileURLToPath } from "url"
+import { config } from "typescript-eslint"
+import nextPlugin from "@next/eslint-plugin-next"
+import reactPlugin from "eslint-plugin-react"
+import reactHooksPlugin from "eslint-plugin-react-hooks"
+import jsxA11yPlugin from "eslint-plugin-jsx-a11y"
+import importPlugin from "eslint-plugin-import"
 
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = dirname(__filename)
-
-const compat = new FlatCompat({
-  baseDirectory: __dirname,
-  recommendedConfig: false,
-  allConfig: false,
-})
-
-export default [
-  ...compat.extends("next/core-web-vitals", "next/typescript"),
+export default config(
   {
+    files: ["**/*.{js,jsx,ts,tsx}"],
+    languageOptions: {
+      parserOptions: {
+        ecmaVersion: "latest",
+        sourceType: "module",
+        ecmaFeatures: {
+          jsx: true,
+        },
+      },
+    },
+    plugins: {
+      "@next/next": nextPlugin,
+      react: reactPlugin,
+      "react-hooks": reactHooksPlugin,
+      "jsx-a11y": jsxA11yPlugin,
+      import: importPlugin,
+    },
     rules: {
+      ...nextPlugin.configs["core-web-vitals"].rules,
+      ...reactPlugin.configs.recommended.rules,
+      ...reactHooksPlugin.configs.recommended.rules,
+      ...jsxA11yPlugin.configs.recommended.rules,
       // Enforce no floating promises (error level)
       // Allow void for fire-and-forget patterns (but require .catch() for error handling)
       "@typescript-eslint/no-floating-promises": ["error", { ignoreVoid: true }],
     },
+    settings: {
+      react: {
+        version: "detect",
+      },
+    },
   },
   {
     ignores: [".next/**", "out/**", "build/**", "next-env.d.ts", "node_modules/**"],
-  },
-]
+  }
+)
