@@ -21,10 +21,10 @@ export async function GET(
     const modules = await ModulesRepository.getByCourseId(course.id)
     const modulesWithLessons: Array<Module & { lessons: Lesson[] }> = []
 
-    for (const module of modules) {
-      const lessons = await LessonsRepository.getByModuleId(course.id, module.id)
+    for (const courseModule of modules) {
+      const lessons = await LessonsRepository.getByModuleId(course.id, courseModule.id)
       modulesWithLessons.push({
-        ...module,
+        ...courseModule,
         lessons,
       })
     }

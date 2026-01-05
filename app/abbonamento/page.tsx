@@ -24,7 +24,7 @@ export default function AbbonamentoPage() {
       <div className="text-center mb-12">
         <h1 className="text-4xl md:text-5xl font-bold mb-4">Scegli il Tuo Piano</h1>
         <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-          Sblocca il pieno potenziale della tua mente con l'accesso completo alla Brain Hacking Academy
+          Sblocca il pieno potenziale della tua mente con l&apos;accesso completo alla Brain Hacking Academy
         </p>
       </div>
 
@@ -53,7 +53,7 @@ export default function AbbonamentoPage() {
           popular
           features={[
             "Tutto del piano mensile",
-            "Risparmia oltre €100 all'anno",
+            "Risparmia oltre €100 all&apos;anno",
             "Accesso anticipato a nuovi corsi",
             "Sessioni Q&A esclusive mensili",
             "Certificati di completamento",
@@ -64,7 +64,7 @@ export default function AbbonamentoPage() {
 
       <div className="max-w-3xl mx-auto mt-12 px-4">
         <div className="bg-card border border-border rounded-lg p-6">
-          <h3 className="text-xl font-bold mb-4">Cosa Include l'Abbonamento</h3>
+          <h3 className="text-xl font-bold mb-4">Cosa Include l&apos;Abbonamento</h3>
           <div className="grid md:grid-cols-2 gap-4 text-sm">
             <div>
               <h4 className="font-semibold mb-2 text-card-foreground">Contenuti Educativi</h4>

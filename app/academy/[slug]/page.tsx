@@ -20,7 +20,7 @@ export default function CourseDetailPage() {
 
   useEffect(() => {
     if (slug) {
-      fetchCourse()
+      void fetchCourse().catch((e) => console.error("[academy] fetchCourse failed", e))
     }
   }, [slug])
 
@@ -66,9 +66,9 @@ export default function CourseDetailPage() {
       const sortedModules = [...modules].sort((a, b) => (a.order || 0) - (b.order || 0))
       
       // Find first lesson in first module
-      for (const module of sortedModules) {
-        if (module.lessons && module.lessons.length > 0) {
-          const sortedLessons = [...module.lessons].sort((a, b) => (a.order || 0) - (b.order || 0))
+      for (const courseModule of sortedModules) {
+        if (courseModule.lessons && courseModule.lessons.length > 0) {
+          const sortedLessons = [...courseModule.lessons].sort((a, b) => (a.order || 0) - (b.order || 0))
           firstLessonId = sortedLessons[0].id
           break
         }
@@ -84,9 +84,9 @@ export default function CourseDetailPage() {
           const fetchedModules = data.modules || []
           const sortedModules = [...fetchedModules].sort((a: Module, b: Module) => (a.order || 0) - (b.order || 0))
           
-          for (const module of sortedModules) {
-            if (module.lessons && module.lessons.length > 0) {
-              const sortedLessons = [...module.lessons].sort((a: Lesson, b: Lesson) => (a.order || 0) - (b.order || 0))
+          for (const courseModule of sortedModules) {
+            if (courseModule.lessons && courseModule.lessons.length > 0) {
+              const sortedLessons = [...courseModule.lessons].sort((a: Lesson, b: Lesson) => (a.order || 0) - (b.order || 0))
               firstLessonId = sortedLessons[0].id
               break
             }
