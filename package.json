@@ -6,6 +6,7 @@
     "build": "next build",
     "dev": "next dev",
     "start": "next start",
+    "lint": "next lint",
     "firestore:deploy-indexes": "firebase deploy --only firestore:indexes",
     "selftest:live-events": "tsx scripts/selftest-live-events.ts"
   },
@@ -43,10 +44,13 @@
     "zod": "^4.2.1"
   },
   "devDependencies": {
+    "@eslint/eslintrc": "^3.3.3",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^22",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@typescript-eslint/eslint-plugin": "^8.51.0",
+    "@typescript-eslint/parser": "^8.51.0",
     "babel-plugin-react-compiler": "1.0.0",
     "postcss": "^8.5",
     "tailwindcss": "^4",

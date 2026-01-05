@@ -1,3 +1,4 @@
+import "server-only"
 import { getAdminApp } from "./firebase-admin"
 import { isDemoMode } from "./env"
 import { getLevelSummary } from "./neurocredits-levels.server"

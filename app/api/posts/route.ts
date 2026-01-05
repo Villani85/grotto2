@@ -150,7 +150,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Touch daily active (idempotent)
-    touchDailyActive(user.uid).catch((error) => {
+    void touchDailyActive(user.uid).catch((error) => {
       console.error("[API Posts] Error touching daily active:", error)
     })
 
