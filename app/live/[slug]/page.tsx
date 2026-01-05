@@ -193,7 +193,7 @@ export default function LiveEventPage() {
         pollingIntervalRef.current = null
       }
     }
-  }, [event?.status, event?.recordingUrl, isPollingRecording, slug, fetchEvent])
+  }, [event?.status, event?.recordingUrl, isPollingRecording, slug])
 
   if (isLoading) {
     return (
