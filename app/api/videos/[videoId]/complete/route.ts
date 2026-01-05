@@ -125,7 +125,7 @@ export async function POST(
     neuroCreditsAwarded = eventResult.neuroCreditsAwarded
 
     // Touch daily active (idempotent)
-    touchDailyActive(user.uid).catch((error) => {
+    void touchDailyActive(user.uid).catch((error) => {
       console.error("[API Video Complete] Error touching daily active:", error)
     })
 

@@ -48,7 +48,7 @@ export async function POST(
     })
 
     // Touch daily active
-    touchDailyActive(user.uid).catch((error) => {
+    void touchDailyActive(user.uid).catch((error) => {
       console.error("[API Lesson Complete] Error touching daily active:", error)
     })
 

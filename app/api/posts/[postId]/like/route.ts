@@ -94,7 +94,7 @@ export async function POST(
     })
 
     // Touch daily active for actor
-    touchDailyActive(user.uid).catch((error) => {
+    void touchDailyActive(user.uid).catch((error) => {
       console.error("[API Posts Like] Error touching daily active:", error)
     })
 
@@ -194,7 +194,7 @@ export async function DELETE(
     })
 
     // Touch daily active for actor
-    touchDailyActive(user.uid).catch((error) => {
+    void touchDailyActive(user.uid).catch((error) => {
       console.error("[API Posts Unlike] Error touching daily active:", error)
     })
 
